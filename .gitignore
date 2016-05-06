@@ -1,0 +1,12 @@
+Library/*
+obj/*
+Output/*
+ProjectSettings/*
+Temp/*
+Assembly-CSharp.csproj
+Assembly-CSharp-Editor.csproj
+Assembly-CSharp-firstpass.csproj
+Chess.CSharp.csproj
+Chess.CSharp.Plugins.csproj
+Chess.sln
+Chess.userprefs
