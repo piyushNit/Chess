@@ -29,4 +29,11 @@ public class Config {
     public static int NO_PRIORITY = 0;
 
     public static float SELECT_UP_MOVE = 1.2f;
+
+    public struct KillingPrioriety
+    {
+        public int prioriety;
+        public Vector2 pieceGridPos;
+        public Vector2 targetGridPos;
+    }
 }
