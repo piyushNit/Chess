@@ -537,7 +537,6 @@ public class GameManager : MonoBehaviour
             if (pieceProperties.isDead)
                 continue;
             availableObjects.Add(AiObjects[i]);
-            Vector2 gridPos = GetGridIndex(AiObjects[i].transform.position);
         }
         return availableObjects;
     }
@@ -710,7 +709,7 @@ public class GameManager : MonoBehaviour
 
     public List<Config.KillingPrioriety> GetInDangerPieces(string myTag) {
         myTag = RevertTag(myTag);
-        List<Config.KillingPrioriety> piecesInDanger = new List<Config.KillingPrioriety>();
+        //List<Config.KillingPrioriety> piecesInDanger = new List<Config.KillingPrioriety>(); // I don't now why I have written this line here
         List<Vector2> movablePieces = GetMovablePieceGridIndex(myTag, false);
         List<Config.KillingPrioriety> piecesWhichCanKill = GetPiecesWhichCanKill(movablePieces);
         return piecesWhichCanKill;
