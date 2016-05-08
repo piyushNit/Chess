@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine.UI;
 
@@ -23,9 +24,14 @@ public class GameplayScene : MonoBehaviour {
     List<Vector2> possibleMoves;
     private bool _gameComplete = false;
     public bool gameComplete { get { return _gameComplete; }}
-    AI ai;
     ChessBoardProperties chessBoardProperties;
-    private bool aiTurn = false;
+    public bool aiTurn = false;
+    public bool isAI = true;
+
+    //AI related code
+    AI ai;
+    public Vector2 aiKingCheckmatePlayerPiece = Vector2.zero;
+
     void Start(){
         InitMemberVars();
         UpdateSelectionPlane();
@@ -112,7 +118,6 @@ public class GameplayScene : MonoBehaviour {
     }
 
     public void SelectBlock(Vector2 gridIndex) {
-        //Utils.DrawTotalGrid(gameManager.gameBoard);
         UpdateSeclectedBlock(gridIndex);
         if (selectedPiece != null)
             UpdatePossibleMoves(gridIndex);
@@ -133,7 +138,7 @@ public class GameplayScene : MonoBehaviour {
             return;
         selectedPiece = pieceTrans;
         selectedPiece.position += selectedPiece.up * Config.SELECT_UP_MOVE;
-        possibleMoves = gameManager.GetPossibleMoves(gridIndex);
+        possibleMoves = gameManager.GetPossibleMoves(gridIndex, false);
         ToggleHighlightEnemyPieces(possibleMoves, true);
         PlayerCanMovePositions(possibleMoves);
     }
@@ -142,12 +147,12 @@ public class GameplayScene : MonoBehaviour {
         if (possibleMoves.Count == 0)
             return;
         for (int i = 0; i < possibleMoves.Count; ++i) {
-            GameObject firstObj = gameManager.GetObjectOnGrid(possibleMoves[i]);
-            if (firstObj != null)
+            GameObject obj = gameManager.GetObjectOnGrid(possibleMoves[i]);
+            if (obj != null)
                 if (value)
-                    ToggleObjColor(firstObj, inDangerColor);
+                    ToggleObjColor(obj, inDangerColor);
                 else
-                    ToggleObjColor(firstObj, Color.white);
+                    ToggleObjColor(obj, Color.white);
         }
     }
 
@@ -222,7 +227,6 @@ public class GameplayScene : MonoBehaviour {
         ai.SetPlayerPiece(gridIndex);
         ToggleHighlightEnemyPieces(possibleMoves, false);
         DeselectLastSelectedPiece();
-        PlayAITurn();
     }
 
     private void UpdatePlayerMove(Vector2 targetGridIndex) {
@@ -234,7 +238,7 @@ public class GameplayScene : MonoBehaviour {
 
         float time = GetTotalMovingTime(targetGridIndex);
         audioSrc.Play();
-        iTween.MoveTo(selectedPiece.gameObject, newPosition, time);
+        StartCoroutine(MoveAnimation(targetGridIndex, selectedPiece.gameObject, time));
         UpdateHUD();
     }
 
@@ -244,12 +248,19 @@ public class GameplayScene : MonoBehaviour {
         int key = gameManager.GetIndexKey(targetGridIndex);
         GameObject playerPiece = gameManager.GetObjectOnGrid(playerGridIndex);
         UpdateStatesInGameManager(key, playerPiece);
-        Vector3 newPosition = gameManager.GetGlobalCoords(targetGridIndex);
 
         float time = GetTotalMovingTime(targetGridIndex, playerPiece);
         audioSrc.Play();
-        iTween.MoveTo(playerPiece.gameObject, newPosition, time);
+        StartCoroutine(MoveAnimation(targetGridIndex, playerPiece, time));
         UpdateHUD();
+    }
+
+    IEnumerator MoveAnimation(Vector2 targetGridIndex, GameObject playerPiece, float time) {
+        Vector3 newPosition = gameManager.GetGlobalCoords(targetGridIndex);
+
+        iTween.MoveTo(playerPiece.gameObject, newPosition, time);
+        yield return new WaitForSeconds(time + 0.5f);
+        PlayAITurn();
     }
 
     private void UpdateHUD() {
@@ -329,5 +340,9 @@ public class GameplayScene : MonoBehaviour {
         int bestMove = PlayerPrefs.GetInt(Keys.KEY_BEST_MOVE);
         if (moves < bestMove || bestMove == 0)
             PlayerPrefs.SetInt(Keys.KEY_BEST_MOVE, moves);
+    }
+
+    public void ResetAIKingCheckmatePiece() {
+        aiKingCheckmatePlayerPiece = Vector2.zero;
     }
 }
