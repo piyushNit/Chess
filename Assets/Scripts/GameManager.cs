@@ -12,6 +12,10 @@ public class GameManager : MonoBehaviour
     public GameObject[] gameBoard = new GameObject[64];
     private GameplayScene gameplayScene;
 
+    void Awake() {
+        gameplayScene = GameObject.FindObjectOfType<GameplayScene>();
+    }
+
 	public void SetPieceOnPosition(int key, GameObject piece){
         for (int i = 0; i < gameBoard.Length; ++i) {
             if (gameBoard[i] == null)
@@ -109,36 +113,36 @@ public class GameManager : MonoBehaviour
         return gameBoard[index] != null ? gameBoard[index].transform : null;
     }
 
-    public List<Vector2> GetPossibleMoves(Vector2 pieceGridPos) {
+    public List<Vector2> GetPossibleMoves(Vector2 pieceGridPos, bool supporting) {
         string pieceType = GetPieceType(pieceGridPos);
         if (pieceType == Config.KING)
-            return GetKingMoves(pieceGridPos);
+            return GetKingMoves(pieceGridPos, supporting);
         if (pieceType == Config.QUEEN)
-            return GetQueenMoves(pieceGridPos);
+            return GetQueenMoves(pieceGridPos, supporting);
         if (pieceType == Config.ROOK)
-            return GetRookMoves(pieceGridPos);
+            return GetRookMoves(pieceGridPos, supporting);
         if (pieceType == Config.BISHOP)
-            return GetBishopMoves(pieceGridPos);
+            return GetBishopMoves(pieceGridPos, supporting);
         if (pieceType == Config.KNIGHT)
             return GetKnightMoves(pieceGridPos);
 
         return GetPawnMoves(pieceGridPos);
     }
 
-    private List<Vector2> GetKingMoves(Vector2 pieceGridPos) {
-        return GetHorizontalVerticalDigonalMoves(Config.KING_MOVE, pieceGridPos);
+    public List<Vector2> GetKingMoves(Vector2 pieceGridPos, bool supporting) {
+        return GetHorizontalVerticalDigonalMoves(Config.KING_MOVE, pieceGridPos, supporting);
     }
 
-    private List<Vector2> GetQueenMoves(Vector2 pieceGridPos) {
-        return GetHorizontalVerticalDigonalMoves(Config.QUEEN_MOVE, pieceGridPos);
+    private List<Vector2> GetQueenMoves(Vector2 pieceGridPos, bool supporting) {
+        return GetHorizontalVerticalDigonalMoves(Config.QUEEN_MOVE, pieceGridPos, supporting);
     }
 
-    private List<Vector2> GetRookMoves(Vector2 pieceGridPos){
-        return GetHorizontalVerticalMoves(Config.ROOK_MOVE, pieceGridPos);
+    private List<Vector2> GetRookMoves(Vector2 pieceGridPos, bool supporting){
+        return GetHorizontalVerticalMoves(Config.ROOK_MOVE, pieceGridPos, supporting);
     }
 
-    private List<Vector2> GetBishopMoves(Vector2 pieceGridPos) {
-        return GetDiagonalMoves(Config.BISHOP_MOVE, pieceGridPos);
+    private List<Vector2> GetBishopMoves(Vector2 pieceGridPos, bool supporting) {
+        return GetDiagonalMoves(Config.BISHOP_MOVE, pieceGridPos, supporting);
     }
 
     private List<Vector2> GetKnightMoves(Vector2 pieceGridPos) {
@@ -213,17 +217,17 @@ public class GameManager : MonoBehaviour
                     possibleMoves.Add(new Vector2(pieceGridPos.x, pieceGridPos.y - i));
             }
         }
-        PawnKillingMoves(ref possibleMoves, pieceGridPos, isWhitePawn);
+        PawnKillingMoves(ref possibleMoves, pieceGridPos, isWhitePawn, false);
         return possibleMoves;
     }
 
-    private void PawnKillingMoves(ref List<Vector2> possieMoves, Vector2 pieceGridPos, bool isWhitePawn) {
+    private void PawnKillingMoves(ref List<Vector2> possieMoves, Vector2 pieceGridPos, bool isWhitePawn, bool supporting) {
         int pos1X = (int)pieceGridPos.x - 1;
         int pos2X = (int)pieceGridPos.x + 1;
         int posY = isWhitePawn ? ((int)pieceGridPos.y + 1) : ((int)pieceGridPos.y - 1);
 
-        bool leftKill = CheckPawnCanKill(new Vector2(pos1X, posY), pieceGridPos);
-        bool rightKill = CheckPawnCanKill(new Vector2(pos2X, posY), pieceGridPos);
+        bool leftKill = CheckPawnCanKill(new Vector2(pos1X, posY), pieceGridPos, supporting);
+        bool rightKill = CheckPawnCanKill(new Vector2(pos2X, posY), pieceGridPos, supporting);
 
         if (leftKill)
             possieMoves.Add(new Vector2(pos1X, posY));
@@ -231,14 +235,14 @@ public class GameManager : MonoBehaviour
             possieMoves.Add(new Vector2(pos2X, posY));
     }
 
-    private bool CheckPawnCanKill(Vector2 gridPos, Vector2 pieceGridPos) {
+    private bool CheckPawnCanKill(Vector2 gridPos, Vector2 pieceGridPos, bool supporting) {
         if (!IsValidIndex(gridPos))
             return false;
 
         GameObject obj1 = GetObjectOnGrid(gridPos);
         if (obj1 == null)
             return false;
-        if(CheckForEnemyPiece(pieceGridPos, gridPos))
+        if (IsEnemyOrSupportingPiece(pieceGridPos, gridPos, supporting))
             return true;
         return false;
     }
@@ -249,24 +253,24 @@ public class GameManager : MonoBehaviour
         return canMoveTwoBlocks ? Config.PAWN_FIRST_TIME_MOVE : Config.PAWN_MOVE;
     }
 
-    private List<Vector2> GetHorizontalVerticalMoves(int maxMoves, Vector2 pieceGridPos) {
+    private List<Vector2> GetHorizontalVerticalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
 
-        possibleMoves.AddRange(GetHorizontalMoves(maxMoves, pieceGridPos));
-        possibleMoves.AddRange(GetVerticalMoves(maxMoves, pieceGridPos));
+        possibleMoves.AddRange(GetHorizontalMoves(maxMoves, pieceGridPos, supporting));
+        possibleMoves.AddRange(GetVerticalMoves(maxMoves, pieceGridPos, supporting));
         return possibleMoves;
     }
 
-    private List<Vector2> GetDiagonalMoves(int maxMoves, Vector2 pieceGridPos) {
+    private List<Vector2> GetDiagonalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
-        possibleMoves.AddRange(GetTopLeftDiagonalMoves(maxMoves, pieceGridPos));
-        possibleMoves.AddRange(GetTopRightDiagonalMoves(maxMoves, pieceGridPos));
-        possibleMoves.AddRange(GetBottomLeftDiagonalMoves(maxMoves, pieceGridPos));
-        possibleMoves.AddRange(GetBottomRightDiagonalMoves(maxMoves, pieceGridPos));
+        possibleMoves.AddRange(GetTopLeftDiagonalMoves(maxMoves, pieceGridPos, supporting));
+        possibleMoves.AddRange(GetTopRightDiagonalMoves(maxMoves, pieceGridPos, supporting));
+        possibleMoves.AddRange(GetBottomLeftDiagonalMoves(maxMoves, pieceGridPos, supporting));
+        possibleMoves.AddRange(GetBottomRightDiagonalMoves(maxMoves, pieceGridPos, supporting));
         return possibleMoves;
     }
 
-    private List<Vector2> GetTopLeftDiagonalMoves(int maxMoves, Vector2 pieceGridPos) {
+    private List<Vector2> GetTopLeftDiagonalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
         int startX = (int)pieceGridPos.x - 1;
         int endX = ((int)pieceGridPos.x - maxMoves) <= 0 ? 0 : (int)pieceGridPos.x - maxMoves;
@@ -278,7 +282,8 @@ public class GameManager : MonoBehaviour
             if (obj == null)
                 possibleMoves.Add(new Vector2(startX, startY));
             else {
-                if (CheckForEnemyPiece(pieceGridPos, new Vector2(startX, startY)))
+                Vector2 currentPos = new Vector2(startX, startY);
+                if (IsEnemyOrSupportingPiece(pieceGridPos, currentPos, supporting))
                     possibleMoves.Add(new Vector2(startX, startY));
                 break;
             }
@@ -288,7 +293,7 @@ public class GameManager : MonoBehaviour
         return possibleMoves;
     }
 
-    private List<Vector2> GetTopRightDiagonalMoves(int maxMoves, Vector2 pieceGridPos) {
+    private List<Vector2> GetTopRightDiagonalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
         int startX = (int)pieceGridPos.x + 1;
         int endX = ((int)pieceGridPos.x + maxMoves) >= Config.BOARD_BLOCKS - 1 ? Config.BOARD_BLOCKS - 1 : (int)pieceGridPos.x + maxMoves;
@@ -300,7 +305,8 @@ public class GameManager : MonoBehaviour
             if (obj == null)
                 possibleMoves.Add(new Vector2(startX, startY));
             else {
-                if (CheckForEnemyPiece(pieceGridPos, new Vector2(startX, startY)))
+                Vector2 currentPos = new Vector2(startX, startY);
+                if (IsEnemyOrSupportingPiece(pieceGridPos, currentPos, supporting))
                     possibleMoves.Add(new Vector2(startX, startY));
                 break;
             }
@@ -310,7 +316,7 @@ public class GameManager : MonoBehaviour
         return possibleMoves;
     }
 
-    private List<Vector2> GetBottomLeftDiagonalMoves(int maxMoves, Vector2 pieceGridPos) {
+    private List<Vector2> GetBottomLeftDiagonalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
         int startX = (int)pieceGridPos.x - 1;
         int endX = ((int)pieceGridPos.x - maxMoves) <= 0 ? 0 : (int)pieceGridPos.x - maxMoves;
@@ -322,7 +328,8 @@ public class GameManager : MonoBehaviour
             if (obj == null)
                 possibleMoves.Add(new Vector2(startX, startY));
             else {
-                if (CheckForEnemyPiece(pieceGridPos, new Vector2(startX, startY)))
+                Vector2 currentPos = new Vector2(startX, startY);
+                if (IsEnemyOrSupportingPiece(pieceGridPos, currentPos, supporting))
                     possibleMoves.Add(new Vector2(startX, startY));
                 break;
             }
@@ -332,7 +339,7 @@ public class GameManager : MonoBehaviour
         return possibleMoves;
     }
 
-    private List<Vector2> GetBottomRightDiagonalMoves(int maxMoves, Vector2 pieceGridPos) {
+    private List<Vector2> GetBottomRightDiagonalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
         int startX = (int)pieceGridPos.x + 1;
         int endX = ((int)pieceGridPos.x + maxMoves) >= Config.BOARD_BLOCKS - 1 ? Config.BOARD_BLOCKS - 1 : (int)pieceGridPos.x + maxMoves;
@@ -344,7 +351,8 @@ public class GameManager : MonoBehaviour
             if (obj == null)
                 possibleMoves.Add(new Vector2(startX, startY));
             else {
-                if (CheckForEnemyPiece(pieceGridPos, new Vector2(startX, startY)))
+                Vector2 currentPos = new Vector2(startX, startY);
+                if (IsEnemyOrSupportingPiece(pieceGridPos, currentPos, supporting))
                     possibleMoves.Add(new Vector2(startX, startY));
                 break;
             }
@@ -354,16 +362,16 @@ public class GameManager : MonoBehaviour
         return possibleMoves;
     }
 
-    private List<Vector2> GetHorizontalVerticalDigonalMoves(int maxMoves, Vector2 pieceGridPos) {
+    private List<Vector2> GetHorizontalVerticalDigonalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
 
-        possibleMoves.AddRange(GetHorizontalMoves(maxMoves, pieceGridPos));
-        possibleMoves.AddRange(GetVerticalMoves(maxMoves, pieceGridPos));
-        possibleMoves.AddRange(GetDiagonalMoves(maxMoves, pieceGridPos));
+        possibleMoves.AddRange(GetHorizontalMoves(maxMoves, pieceGridPos, supporting));
+        possibleMoves.AddRange(GetVerticalMoves(maxMoves, pieceGridPos, supporting));
+        possibleMoves.AddRange(GetDiagonalMoves(maxMoves, pieceGridPos, supporting));
         return possibleMoves;
     }
 
-    public List<Vector2> GetHorizontalMoves(int maxMoves, Vector2 pieceGridPos) {
+    public List<Vector2> GetHorizontalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> moves = new List<Vector2>();
         int startX = 0;
         int endX = Config.BOARD_BLOCKS;
@@ -372,9 +380,9 @@ public class GameManager : MonoBehaviour
             endX = GetEndXPos(maxMoves, pieceGridPos);
         }
         for (; startX < endX; ++startX) {
-            if (startX == pieceGridPos.x)
+            if (startX == pieceGridPos.x)   // same piece
                 continue;
-            if (!AddItemsInHoriMovesArray(ref moves, new Vector2(startX, pieceGridPos.y), pieceGridPos))
+            if (!AddItemsInHoriMovesArray(ref moves, new Vector2(startX, pieceGridPos.y), pieceGridPos, supporting))
                 break;
         }
         return moves;
@@ -388,17 +396,17 @@ public class GameManager : MonoBehaviour
         return (pieceGridPos.x + maxMoves) >= Config.BOARD_BLOCKS ? Config.BOARD_BLOCKS : (int)pieceGridPos.x + maxMoves + 1;
     }
 
-    private bool AddItemsInHoriMovesArray(ref List<Vector2> moves, Vector2 currXY, Vector2 pieceGridPos) {
+    private bool AddItemsInHoriMovesArray(ref List<Vector2> moves, Vector2 currXY, Vector2 pieceGridPos, bool supporting) {
         int index = GetIndexKey(currXY);
 
         if (gameBoard[index] != null) {
             if (IsLesserThanSelectedPiece(currXY.x, pieceGridPos.x)) {
                 moves.Clear();
-                if (CheckForEnemyPiece(pieceGridPos, currXY))
+                if (IsEnemyOrSupportingPiece(pieceGridPos, currXY, supporting))
                     moves.Add(currXY);
             }
             else {
-                if (CheckForEnemyPiece(pieceGridPos, currXY))
+                if (IsEnemyOrSupportingPiece(pieceGridPos, currXY, supporting))
                     moves.Add(currXY);
                 return false;
             }
@@ -409,6 +417,14 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    private bool IsEnemyOrSupportingPiece(Vector2 pieceGridPos, Vector2 currentGridPos, bool supporting) {
+        bool isSupporting = IsSupportingThePiece(pieceGridPos, supporting);
+        if (supporting)
+            return isSupporting;
+        bool isEnemy = CheckForEnemyPiece(pieceGridPos, currentGridPos);
+        return isEnemy;
+    }
+
     private bool IsSameObject(GameObject obj1, GameObject obj2) {
         return obj1.tag == obj2.tag;
     }
@@ -417,7 +433,7 @@ public class GameManager : MonoBehaviour
         return val1 < val2;
     }
 
-    public List<Vector2> GetVerticalMoves(int maxMoves, Vector2 pieceGridPos) {
+    public List<Vector2> GetVerticalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> moves = new List<Vector2>();
         int startY = 0;
         int endY = Config.BOARD_BLOCKS;
@@ -428,7 +444,7 @@ public class GameManager : MonoBehaviour
         for (; startY < endY; ++startY) {
             if (startY == pieceGridPos.y)
                 continue;
-            if (!AddItemsInVerticalMovesArray(ref moves, new Vector2(pieceGridPos.x, startY), pieceGridPos))
+            if (!AddItemsInVerticalMovesArray(ref moves, new Vector2(pieceGridPos.x, startY), pieceGridPos, supporting))
                 break;
         }
         return moves;
@@ -442,17 +458,17 @@ public class GameManager : MonoBehaviour
         return (pieceGridPos.y + maxMoves) >= Config.BOARD_BLOCKS ? Config.BOARD_BLOCKS : (int)pieceGridPos.y + maxMoves + 1;
     }
 
-    private bool AddItemsInVerticalMovesArray(ref List<Vector2> moves, Vector2 currXY, Vector2 pieceGridPos) {
+    private bool AddItemsInVerticalMovesArray(ref List<Vector2> moves, Vector2 currXY, Vector2 pieceGridPos, bool supporting) {
         int key = GetIndexKey(currXY);
 
         if (gameBoard[key] != null) {
             if (IsLesserThanSelectedPiece(currXY.y, pieceGridPos.y)) {
                 moves.Clear();
-                if (CheckForEnemyPiece(pieceGridPos, currXY))
+                if (CheckForEnemyPiece(pieceGridPos, currXY) || IsSupportingThePiece(pieceGridPos, supporting))
                     moves.Add(currXY);
             }
             else {
-                if (CheckForEnemyPiece(pieceGridPos, currXY))
+                if (IsEnemyOrSupportingPiece(pieceGridPos, currXY, supporting))
                     moves.Add(currXY);
                 return false;
             }
@@ -487,12 +503,13 @@ public class GameManager : MonoBehaviour
     }
 
     //AI code from here
-    public List<Vector2> GetMovableObjects(string tag) {
+    public List<Vector2> GetMovablePieceGridIndex(string tag, bool supporting) {
         List<Vector2> movableObjects = new List<Vector2>();
-        List<GameObject> AiObjects = GetAvailablePiecesWithoutKing(tag);
-        for (int i = 0; i < AiObjects.Count; ++i) {
-            Vector2 gridPos = GetGridIndex(AiObjects[i].transform.position);
-            if (GetPossibleMoves(gridPos).Count <= 0)
+        List<GameObject> availablePieces = GetAvailablePieces(tag);
+        for (int i = 0; i < availablePieces.Count; ++i) {
+            Vector2 gridPos = GetGridIndex(availablePieces[i].transform.position);
+            List<Vector2> possibleMoves = GetPossibleMoves(gridPos, supporting);
+            if (possibleMoves.Count <= 0)
                 continue;
             movableObjects.Add(gridPos);
         }
@@ -504,7 +521,7 @@ public class GameManager : MonoBehaviour
     /// </summary>
     /// <param name="tag"></param>
     /// <returns></returns>
-    /*public List<GameObject> GetAvailablePieces(string tag) {
+    public List<GameObject> GetAvailablePieces(string tag) {
         GameObject[] AiObjects = GameObject.FindGameObjectsWithTag(tag);
         List<GameObject> availableObjects = new List<GameObject>();
         for (int i = 0; i < AiObjects.Length; ++i) {
@@ -512,9 +529,10 @@ public class GameManager : MonoBehaviour
             if (pieceProperties.isDead)
                 continue;
             availableObjects.Add(AiObjects[i]);
+            Vector2 gridPos = GetGridIndex(AiObjects[i].transform.position);
         }
         return availableObjects;
-    }*/
+    }
 
     /// <summary>
     /// Return available game objects which are not dead or which can play except king.
@@ -601,10 +619,10 @@ public class GameManager : MonoBehaviour
         return gridPositions;
     }
 
-    public List<Vector2> CanPassThroughPieces(List<Vector2> gridPosition, Vector2 targettedGridPos) {
+    public List<Vector2> GetPassingThroughPieces(List<Vector2> gridPosition, Vector2 targettedGridPos) {
         List<Vector2> piecesGridPositions = new List<Vector2>();
         for (int i = 0; i < gridPosition.Count; ++i) {
-            List<Vector2> movableRange = GetPossibleMoves(gridPosition[i]);
+            List<Vector2> movableRange = GetPossibleMoves(gridPosition[i], false);
             for (int j = 0; j < movableRange.Count; ++j) {
                 if (movableRange[j] != targettedGridPos)
                     continue;
@@ -624,7 +642,7 @@ public class GameManager : MonoBehaviour
     public List<Vector2> GetInBetweenBlocks(Vector2 from, Vector2 to) {
         ShuffleMinMaxValue(ref from, ref to);
         List<Vector2> possibleBlocks = new List<Vector2>();
-        string patternType = DecideWhichPattern(from, to);
+        string patternType = GetMovingDirectionType(from, to);
 
         if (patternType == "Vertical")
             FromTillVerticalBlocks(ref possibleBlocks, from, to);
@@ -647,8 +665,8 @@ public class GameManager : MonoBehaviour
     }
 
     public void FromTillVerticalBlocks(ref List<Vector2> possibleBlocks, Vector2 from, Vector2 to) {
-        int coundIndex = (int)from.x - (int)to.x;
-        for (int i = 0; i < coundIndex; ++i) {
+        int countIndex = (int)from.x - (int)to.x;
+        for (int i = 0; i < countIndex; ++i) {
             Vector2 tempPos = new Vector2(to.x + i, to.y);
             possibleBlocks.Add(tempPos);
         }
@@ -663,7 +681,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private string DecideWhichPattern(Vector2 from, Vector2 to) {
+    private string GetMovingDirectionType(Vector2 from, Vector2 to) {
         if (from.x == to.x)
             return "Vertical";
         if (from.y == to.y)
@@ -680,5 +698,104 @@ public class GameManager : MonoBehaviour
         Vector2 temp = from;
         from = to;
         to = temp;
+    }
+
+    public List<Config.KillingPrioriety> GetInDangerPieces(string myTag) {
+        myTag = RevertTag(myTag);
+        List<Config.KillingPrioriety> piecesInDanger = new List<Config.KillingPrioriety>();
+        List<Vector2> movablePieces = GetMovablePieceGridIndex(myTag, false);
+        List<Config.KillingPrioriety> piecesWhichCanKill = GetPiecesWhichCanKill(movablePieces);
+        return piecesWhichCanKill;
+    }
+
+    public List<Config.KillingPrioriety> GetPiecesWhichCanKill(List<Vector2> movablePieces) {
+        List<Config.KillingPrioriety> killingPieces = new List<Config.KillingPrioriety>();
+        for (int i = 0; i < movablePieces.Count; ++i)
+        {
+            List<Vector2> movableRange = GetPossibleMoves(movablePieces[i], false);
+            for (int j = 0; j < movableRange.Count; ++j)
+            {
+                Config.KillingPrioriety hunterPiece = new Config.KillingPrioriety();
+                if (GetObjectOnGrid(movableRange[j]) == null)
+                    continue;
+                else
+                    hunterPiece.prioriety = GetPiecePrioriety(movableRange[j]);
+                SetKillingPriorietyVars(ref hunterPiece, movablePieces[i], movableRange[j]);
+                killingPieces.Add(hunterPiece);
+                if (CheckAndSetSupremePrioriety(ref killingPieces, hunterPiece))
+                    goto outerContinue;
+            }
+        }
+        outerContinue:
+            return killingPieces;
+    }
+
+    public void SetKillingPriorietyVars(ref Config.KillingPrioriety hunterPiece, Vector2 gridPos, Vector2 targetPos) {
+        hunterPiece.pieceGridPos = gridPos;
+        hunterPiece.targetGridPos = targetPos;
+    }
+
+    public bool CheckAndSetSupremePrioriety(ref List<Config.KillingPrioriety> killingPieces, Config.KillingPrioriety hunterPiece) {
+        for (int i = 0; i < killingPieces.Count; ++i)
+        {
+            if (killingPieces[i].prioriety == Config.SUPREME_PRIORITY)
+            {
+                killingPieces.Clear();
+                killingPieces.Add(hunterPiece);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public int GetPiecePrioriety(Vector2 targetGridPos) {
+        GameObject obj = GetObjectOnGrid(targetGridPos);
+        string typeStr = obj.GetComponent<PieceProperties>().typeStr;
+        if (typeStr == Config.KING)
+            return Config.SUPREME_PRIORITY;
+        if (typeStr == Config.QUEEN)
+            return Config.HIGH_PRIORITY;
+        if (typeStr == Config.ROOK || typeStr == Config.BISHOP || typeStr == Config.KNIGHT)
+            return Config.MEDIUM_PRIORITY;
+        return Config.LOW_PRIORITY;
+    }
+
+    /// <summary>
+    /// Reverts the tag of the team
+    /// if player having white tag then returns black tag.
+    /// same as for black tag.
+    /// </summary>
+    /// <param name="myTag"></param>
+    /// <returns></returns>
+    public string RevertTag(string myTag) {
+        return (myTag == Config.WHITE_TAG) ? Config.BLACK_TAG : Config.WHITE_TAG;
+    }
+
+    private bool IsSupportingThePiece(Vector2 pieceGridPos, bool supporting) {
+        if (!supporting)
+            return supporting;
+        return gameplayScene.aiKingCheckmatePlayerPiece == pieceGridPos;
+    }
+
+    public bool IsSupportingthePiece(Vector2 targetPos, string myTag) {
+        myTag = RevertTag(myTag);
+        gameplayScene.aiKingCheckmatePlayerPiece = targetPos;
+        List<Vector2> movablePieces = GetMovablePieceGridIndex(myTag, true); // wrong code here correct it
+        gameplayScene.ResetAIKingCheckmatePiece();
+        return movablePieces.Contains(targetPos);
+    }
+
+    public Vector2 GetSafeZoneToMove(List<Vector2> movableRange, string myTag) {
+        myTag = RevertTag(myTag);
+        List<Vector2> movablePieces = GetMovablePieceGridIndex(myTag, false);
+        Vector2 move = Vector2.zero;
+        
+        for (int i = 0; i < movableRange.Count; ++i) {
+            List<Vector2> piecesPassingThrough = GetPassingThroughPieces(movablePieces, movableRange[i]);
+            if (piecesPassingThrough.Count > 0)
+                continue;
+            move = movableRange[i];
+        }
+        return move;
     }
 }
