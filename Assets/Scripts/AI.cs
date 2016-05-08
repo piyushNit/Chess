@@ -8,14 +8,19 @@ public class AI : MonoBehaviour {
     [SerializeField] private float pieceWaitTime = 0.2f;
 
     Vector2 playerPiece;
+    private List<Vector2> justMovablePieces;
+    private List<Config.KillingPrioriety> killingPieces;
+    private List<Config.KillingPrioriety> piecesInDanger;
+    //private List<Vector2> kingKillingPieces;
 
-    struct KillingPrioriety {
-        public int prioriety;
-        public Vector2 pieceGridPos;
-        public Vector2 targetGridPos;
-    }
+    //struct KillingPrioriety {
+    //    public int prioriety;
+    //    public Vector2 pieceGridPos;
+    //    public Vector2 targetGridPos;
+    //}
 
     GameplayScene gameplayScene;
+    private Vector2 kingPos;
 
     void Start() {
         InitMemberVars();
@@ -25,51 +30,175 @@ public class AI : MonoBehaviour {
         if (Input.GetKeyUp(KeyCode.Space))
             PlayAiTurn();
     }
-/*    void OnEnable() {
-        InitMemberVars();
-        PlayAiTurn();
-    }
-*/
+    /*    void OnEnable() {
+            InitMemberVars();
+            PlayAiTurn();
+        }
+    */
+
     private void InitMemberVars() {
         if(gameManager == null)
             gameManager = GameObject.FindObjectOfType<GameManager>();
         myTag = Config.BLACK_TAG;
         if(gameplayScene == null)
             gameplayScene = GameObject.FindObjectOfType<GameplayScene>();
+        piecesInDanger = new List<Config.KillingPrioriety>();
     }
 
     public void PlayAiTurn() {
         if (gameplayScene.gameComplete)
             return;
-        //if (IsCheckMate())
-        //    //DefendTheKing();
-        //else
+
+        AnalyzeChessBoard();
+        if (IsCheckMate())
+            CheckMateAnalysis();
+        else
             MoveNormalPieces();
+        ResetVariables();
+    }
+
+    private void AnalyzeChessBoard() {
+        justMovablePieces = gameManager.GetMovablePieceGridIndex(myTag, false);
+        killingPieces = gameManager.GetPiecesWhichCanKill(justMovablePieces);
+        piecesInDanger = gameManager.GetInDangerPieces(myTag);
+        UpdateKingPos();
+    }
+
+    private void AnalyzePieceToPlay() {
+
+    }
+
+    private void ResetVariables() {
+        justMovablePieces.Clear();
+        killingPieces.Clear();
+        piecesInDanger.Clear();
     }
 
     private bool IsCheckMate() {
-        Vector2 kingPos = gameManager.GetPieceGridPosByString(Config.KING, myTag);
+        return IsContainingKillingPiece(piecesInDanger, kingPos);
+    }
 
-        List<Vector2> movableRange = gameManager.GetPossibleMoves(playerPiece);
-        for (int i = 0; i < movableRange.Count; ++i) {
-            if (movableRange[i] == kingPos)
+    private bool IsContainingKillingPiece(Config.KillingPrioriety hunterPiece, Vector2 gridPos) {
+        Config.KillingPrioriety killingPriority = hunterPiece;
+        if (killingPriority.targetGridPos == gridPos)
+            return true;
+        return false;
+    }
+
+    private bool IsContainingKillingPiece(List<Config.KillingPrioriety> hunterPiece, Vector2 gridPos) {
+        for (int i = 0; i < hunterPiece.Count; ++i) {
+            bool contains = IsContainingKillingPiece(hunterPiece[i], gridPos);
+            if (contains)
                 return true;
         }
         return false;
     }
 
-    private void DefendTheKing() {
-        Vector2 kingPos = gameManager.GetPieceGridPosByString(Config.KING, myTag);
-        List<Vector2> inbetweenBlocks = gameManager.GetInBetweenBlocks(kingPos, playerPiece);
-        Vector2 targetedGridPos = Vector2.zero;
-        for (int i = 0; i < inbetweenBlocks.Count; ++i) {
-           // targetedGridPos = GetPiecesWhichCanPassThrough(inbetweenBlocks[i]);
-            if (targetedGridPos != Vector2.zero)
-                goto MoveThePiece;
+    private void UpdateKingPos() {
+        kingPos = gameManager.GetPieceGridPosByString(Config.KING, myTag);
+    }
+
+    private void CheckMateAnalysis() {
+        List<Vector2> piecesChallangingTheKing = new List<Vector2>();
+        piecesChallangingTheKing = FindPiecesChallingKing();
+        bool isSinglePieceChallanging = piecesChallangingTheKing.Count == 1;
+        if (isSinglePieceChallanging)
+            UpdateForSingleStrategy(piecesChallangingTheKing);
+        else
+
+        DefendTheKing();
+    }
+
+    private void UpdateForSingleStrategy(List<Vector2> piecesChallangingTheKing) {
+        bool isNoRange = IsTargettedPieceHavingNoRange(piecesChallangingTheKing);
+        bool isPerfectStrategy = isNoRange ? IsPerfectStrategy(piecesChallangingTheKing[0]) : false;
+        if (isPerfectStrategy)
+            AnalyzeToDefendPerfectStrategy(piecesChallangingTheKing[0]);
+        else {
+            bool canKillByOther = IsContainingKillingPiece(killingPieces, piecesChallangingTheKing[0]);
+            if (canKillByOther)
+                KillThePiece(piecesChallangingTheKing[0]);
+            else {
+                bool isMovedToSafeZone = MoveToSafeZone();
+                // player piece and king piece block code here
+                //DefendTheKing()
+                if (!isMovedToSafeZone)
+                    CommitLose();
+            }
         }
-        return;
-        MoveThePiece:
-        DecidePieceToMove(playerPiece, targetedGridPos);
+    }
+
+    private void AnalyzeToDefendPerfectStrategy(Vector2 targetPiece) {
+        bool isKilledByOther = CanKillByOtherPieces(targetPiece);
+        if (isKilledByOther)
+            return;
+        //find king moving areas
+        // find can kill the piece
+        // if there is no option then commit lose
+        CommitLose();
+    }
+
+    private bool MoveToSafeZone() {
+        List<Vector2> kingMovingAreas = gameManager.GetKingMoves(kingPos, false);
+        if (kingMovingAreas.Count <= 0) {
+            CommitLose();
+            return true;
+        }
+        Vector2 safeZoneToMove = gameManager.GetSafeZoneToMove(kingMovingAreas, myTag);
+        if (safeZoneToMove != Vector2.zero) {
+            gameplayScene.UpdatePlayerMove(kingPos, safeZoneToMove);
+            return true;
+        }
+        return false;
+    }
+
+    private bool CanKillByOtherPieces(Vector2 targetPiece) {
+        for (int i = 0; i < killingPieces.Count; ++i) {
+            if (IsContainingKillingPiece(killingPieces, targetPiece)) {
+                gameplayScene.UpdatePlayerMove(killingPieces[i].pieceGridPos, targetPiece);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void KillThePiece(Vector2 targetPiece) {
+        gameplayScene.UpdatePlayerMove(killingPieces[0].pieceGridPos, killingPieces[0].targetGridPos);
+    }
+
+    private bool IsPerfectStrategy(Vector2 challangingPiece) {
+        bool isSupporting = gameManager.IsSupportingthePiece(challangingPiece, myTag);
+        return isSupporting;
+    }
+
+    private void CommitLose() {
+        Debug.Log("Lose the game");
+    }
+
+    private List<Vector2> FindPiecesChallingKing() {
+        List<Vector2> piecesChallangingTheKing = new List<Vector2>();
+        for (int i = 0; i < piecesInDanger.Count; ++i) {
+            Config.KillingPrioriety killingPrioriety = piecesInDanger[i];
+            if (IsContainingKillingPiece(piecesInDanger[i], kingPos))
+                piecesChallangingTheKing.Add(killingPrioriety.pieceGridPos);
+        }
+        return piecesChallangingTheKing;
+    }
+
+    private bool IsTargettedPieceHavingNoRange(List<Vector2> piecesChallangingTheKing) {
+        int x = Mathf.Abs((int)piecesChallangingTheKing[0].x - (int)kingPos.x);
+        int y = Mathf.Abs((int)piecesChallangingTheKing[0].y - (int)kingPos.y);
+        return (x == 1 || y == 1) ? true : false;
+    }
+
+    private void DefendTheKing() {
+
+        //Vector2 kingPos = gameManager.GetPieceGridPosByString(Config.KING, myTag);
+        //List<Vector2> inbetweenBlocks = gameManager.GetInBetweenBlocks(kingPos, playerPiece);
+        //for (int i = 0; i < inbetweenBlocks.Count; ++i) {
+        //    Debug.Log("X: " + inbetweenBlocks[i].x + " y: " + inbetweenBlocks[i].y);
+        //}
+        //Vector2 targetedGridPos = Vector2.zero;
     }
 
     public void SetPlayerPiece(Vector2 gridPos) {
@@ -77,63 +206,28 @@ public class AI : MonoBehaviour {
     }
 
     private void MoveNormalPieces() {
-        List<Vector2> movablePieces = new List<Vector2>();
-        movablePieces = gameManager.GetMovableObjects(myTag);
-        List<KillingPrioriety> killingPieces = GetPiecesWhichCanKill(movablePieces);
-        UpdateAIMove(killingPieces);
+        if(killingPieces.Count > 0)
+            UpdateAIMove(killingPieces);
+        else
+            UpdateAIMovingPiece();
         if (CheckForGameOver(killingPieces))
             gameplayScene.GameOver("Ai");
     }
 
-    List<KillingPrioriety> GetPiecesWhichCanKill(List<Vector2> movablePieces) {
-        List<KillingPrioriety> killingPieces = new List<KillingPrioriety>();
-        for (int i = 0; i < movablePieces.Count; ++i) {
-            List<Vector2> movableRange = gameManager.GetPossibleMoves(movablePieces[i]);
-            for (int j = 0; j < movableRange.Count; ++j) {
-                KillingPrioriety hunterPiece = new KillingPrioriety();
-                if (gameManager.GetObjectOnGrid(movableRange[j]) == null)
-                    hunterPiece.prioriety = Config.NO_PRIORITY;
-                else
-                    hunterPiece.prioriety = GetPiecePrioriety(movableRange[j]);
-                SetKillingPriorietyVars(ref hunterPiece, movablePieces[i], movableRange[j]);
-                killingPieces.Add(hunterPiece);
-                if (CheckAndSetSupremePrioriety(ref killingPieces, hunterPiece))
-                    goto outerContinue;
-            }
-        }
-        outerContinue:
-        return killingPieces;
+    private void UpdateAIMovingPiece() {
+        if (justMovablePieces.Count <= 0)
+            return;
+        //send message no way to move
+        int randomIndex = Random.Range(0, justMovablePieces.Count);
+        Vector2 selMovingPiece = justMovablePieces[randomIndex];
+        gameplayScene.SelectBlock(selMovingPiece);
+
+        List<Vector2> movingRange = gameManager.GetPossibleMoves(selMovingPiece, false);
+        int moveIndex = Random.Range(0, movingRange.Count);
+        StartCoroutine(TakeNextStep(movingRange[moveIndex]));
     }
 
-    private void SetKillingPriorietyVars(ref KillingPrioriety hunterPiece, Vector2 gridPos, Vector2 targetPos) {
-        hunterPiece.pieceGridPos = gridPos;
-        hunterPiece.targetGridPos = targetPos;
-    }
-
-    private bool CheckAndSetSupremePrioriety(ref List<KillingPrioriety> killingPieces, KillingPrioriety hunterPiece) {
-        for(int i = 0; i < killingPieces.Count; ++i) {
-            if (killingPieces[i].prioriety == Config.SUPREME_PRIORITY) {
-                killingPieces.Clear();
-                killingPieces.Add(hunterPiece);
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private int GetPiecePrioriety(Vector2 targetGridPos) {
-        GameObject obj = gameManager.GetObjectOnGrid(targetGridPos);
-        string typeStr = obj.GetComponent<PieceProperties>().typeStr;
-        if (typeStr == Config.KING)
-            return Config.SUPREME_PRIORITY;
-        if (typeStr == Config.QUEEN)
-            return Config.HIGH_PRIORITY;
-        if (typeStr == Config.ROOK || typeStr == Config.BISHOP || typeStr == Config.KNIGHT)
-            return Config.MEDIUM_PRIORITY;
-        return Config.LOW_PRIORITY;
-    }
-
-    private void KillTheKing(KillingPrioriety value) {
+    private void KillTheKing(Config.KillingPrioriety value) {
         int key = gameManager.GetIndexKey(value.pieceGridPos);
         GameObject obj = gameManager.GetObjectOnGrid(value.pieceGridPos);
         Vector3 targetPosition = gameManager.GetGlobalCoords(value.targetGridPos);
@@ -142,7 +236,7 @@ public class AI : MonoBehaviour {
         iTween.MoveTo(obj, targetPosition, gameManager.pieceMoveSpeed);
     }
 
-    private bool CheckForGameOver(List<KillingPrioriety> killingPieces) {
+    private bool CheckForGameOver(List<Config.KillingPrioriety> killingPieces) {
         for (int index = 0; index < killingPieces.Count; ++index) {
             if (killingPieces[index].prioriety == Config.SUPREME_PRIORITY)
                 return true;
@@ -150,7 +244,7 @@ public class AI : MonoBehaviour {
         return false;
     }
 
-    private void UpdateAIMove(List<KillingPrioriety> killingPieces) {
+    private void UpdateAIMove(List<Config.KillingPrioriety> killingPieces) {
         if (IsQueenCanBeKilled(killingPieces[0])){
             gameplayScene.UpdatePlayerMove(killingPieces[0].pieceGridPos, killingPieces[0].targetGridPos);
             return;
@@ -158,14 +252,14 @@ public class AI : MonoBehaviour {
         DecidePieceToMove(killingPieces);
     }
 
-    private bool IsQueenCanBeKilled(KillingPrioriety hunter) {
+    private bool IsQueenCanBeKilled(Config.KillingPrioriety hunter) {
         if (hunter.prioriety == Config.HIGH_PRIORITY)
             return true;
         return false;
     }
 
-    private void DecidePieceToMove(List<KillingPrioriety> killingPieces) {
-        KillingPrioriety aiMovingPiece = GetAIMovingPiece(killingPieces);
+    private void DecidePieceToMove(List<Config.KillingPrioriety> killingPieces) {
+        Config.KillingPrioriety aiMovingPiece = GetAIMovingPiece(killingPieces);
         gameplayScene.SelectBlock(aiMovingPiece.pieceGridPos);
         StartCoroutine(TakeNextStep(aiMovingPiece.targetGridPos));
     }
@@ -180,8 +274,8 @@ public class AI : MonoBehaviour {
         gameplayScene.SelectBlock(targetPosition);
     }
 
-    private KillingPrioriety GetAIMovingPiece(List<KillingPrioriety> killingPieces) {
-        KillingPrioriety movingPiece = new KillingPrioriety();
+    private Config.KillingPrioriety GetAIMovingPiece(List<Config.KillingPrioriety> killingPieces) {
+        Config.KillingPrioriety movingPiece = new Config.KillingPrioriety();
         int priorietyPiece = Config.NO_PRIORITY;
         for (int i = 0; i < killingPieces.Count; ++i) {
             if (priorietyPiece < killingPieces[i].prioriety)
@@ -199,15 +293,15 @@ public class AI : MonoBehaviour {
     /// Return Objects which can pass or move through given block grid position.
     /// </summary>
     /// <param name="gridPos"></param>
-    //private Vector2 GetPiecesWhichCanPassThrough(Vector2 gridPos) {
-    //    List<GameObject> availablePieces = gameManager.GetAvailablePieces(myTag);
-    //    List<Vector2> availablePiecesGridPos = gameManager.ConvertGlobPosToGridPos(availablePieces);
-    //    List<Vector2> picesWhichCanPassThrough = gameManager.CanPassThroughPieces(availablePiecesGridPos, gridPos);
-    //    List<KillingPrioriety> killingPieces = ConvertGridPosToKillingPrioriety(picesWhichCanPassThrough, gridPos);
-    //    return GetLowestPriorietyPiece(killingPieces);
-    //}
+    private Vector2 GetPiecesWhichCanPassThrough(Vector2 gridPos) {
+        List<GameObject> availablePieces = gameManager.GetAvailablePieces(myTag);
+        List<Vector2> availablePiecesGridPos = gameManager.ConvertGlobPosToGridPos(availablePieces);
+        List<Vector2> picesWhichCanPassThrough = gameManager.GetPassingThroughPieces(availablePiecesGridPos, gridPos);
+        List<Config.KillingPrioriety> killingPieces = ConvertGridPosToKillingPrioriety(picesWhichCanPassThrough, gridPos);
+        return GetLowestPriorietyPiece(killingPieces);
+    }
 
-    private Vector2 GetLowestPriorietyPiece(List<KillingPrioriety> killingPriorietyPieces) {
+    private Vector2 GetLowestPriorietyPiece(List<Config.KillingPrioriety> killingPriorietyPieces) {
         int kilingPrioerietyPiece = 1;
         Vector2 killingPiece = Vector2.zero;
         for (int i = 0; i < killingPriorietyPieces.Count; ++i) {
@@ -218,13 +312,13 @@ public class AI : MonoBehaviour {
         return killingPiece;
     }
 
-    private List<KillingPrioriety> ConvertGridPosToKillingPrioriety(List<Vector2> gridPos, Vector2 targettedPos) {
-        List<KillingPrioriety> piecesWithKillingProioriety = new List<KillingPrioriety>();
+    private List<Config.KillingPrioriety> ConvertGridPosToKillingPrioriety(List<Vector2> gridPos, Vector2 targettedPos) {
+        List<Config.KillingPrioriety> piecesWithKillingProioriety = new List<Config.KillingPrioriety>();
         for (int i = 0; i < gridPos.Count; ++i) {
-            KillingPrioriety killingPrioriety = new KillingPrioriety();
+            Config.KillingPrioriety killingPrioriety = new Config.KillingPrioriety();
             killingPrioriety.pieceGridPos = gridPos[i];
             killingPrioriety.targetGridPos = targettedPos;
-            killingPrioriety.prioriety = GetPiecePrioriety(gridPos[i]);
+            killingPrioriety.prioriety = gameManager.GetPiecePrioriety(gridPos[i]);
             piecesWithKillingProioriety.Add(killingPrioriety);
         }
         return piecesWithKillingProioriety;
