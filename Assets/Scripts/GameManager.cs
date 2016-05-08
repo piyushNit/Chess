@@ -124,9 +124,9 @@ public class GameManager : MonoBehaviour
         if (pieceType == Config.BISHOP)
             return GetBishopMoves(pieceGridPos, supporting);
         if (pieceType == Config.KNIGHT)
-            return GetKnightMoves(pieceGridPos);
+            return GetKnightMoves(pieceGridPos, supporting);
 
-        return GetPawnMoves(pieceGridPos);
+        return GetPawnMoves(pieceGridPos, supporting);
     }
 
     public List<Vector2> GetKingMoves(Vector2 pieceGridPos, bool supporting) {
@@ -145,14 +145,14 @@ public class GameManager : MonoBehaviour
         return GetDiagonalMoves(Config.BISHOP_MOVE, pieceGridPos, supporting);
     }
 
-    private List<Vector2> GetKnightMoves(Vector2 pieceGridPos) {
+    private List<Vector2> GetKnightMoves(Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
-        possibleMoves.AddRange(GetHorizontalKnightMoves(pieceGridPos));
-        possibleMoves.AddRange(GetVerticalKnightMoves(pieceGridPos));
+        possibleMoves.AddRange(GetHorizontalKnightMoves(pieceGridPos, supporting));
+        possibleMoves.AddRange(GetVerticalKnightMoves(pieceGridPos, supporting));
         return possibleMoves;
     }
 
-    private List<Vector2> GetVerticalKnightMoves(Vector2 pieceGridPos) {
+    private List<Vector2> GetVerticalKnightMoves(Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
         List<Vector2> tempMoves = new List<Vector2>();
         int posY1 = (int)pieceGridPos.y + Config.KNIGHT_MOVE;
@@ -163,11 +163,11 @@ public class GameManager : MonoBehaviour
         tempMoves.Add(new Vector2(pieceGridPos.x + 1, posY2));
         tempMoves.Add(new Vector2(pieceGridPos.x - 1, posY2));
 
-        SetValidMovesFromTemp(ref possibleMoves, tempMoves, pieceGridPos);
+        SetValidMovesFromTemp(ref possibleMoves, tempMoves, pieceGridPos, supporting);
         return possibleMoves;
     }
 
-    private List<Vector2> GetHorizontalKnightMoves(Vector2 pieceGridPos) {
+    private List<Vector2> GetHorizontalKnightMoves(Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
         List<Vector2> tempMoves = new List<Vector2>();
         int posX1 = (int)pieceGridPos.x + Config.KNIGHT_MOVE;
@@ -178,25 +178,25 @@ public class GameManager : MonoBehaviour
         tempMoves.Add(new Vector2(posX2, pieceGridPos.y + 1));
         tempMoves.Add(new Vector2(posX2, pieceGridPos.y - 1));
 
-        SetValidMovesFromTemp(ref possibleMoves, tempMoves, pieceGridPos);
+        SetValidMovesFromTemp(ref possibleMoves, tempMoves, pieceGridPos, supporting);
         return possibleMoves;
     }
 
-    private void SetValidMovesFromTemp(ref List<Vector2> possibleMoves, List<Vector2> tempMoves, Vector2 pieceGridPos) {
+    private void SetValidMovesFromTemp(ref List<Vector2> possibleMoves, List<Vector2> tempMoves, Vector2 pieceGridPos, bool supporting) {
         for (int i = 0; i < tempMoves.Count; ++i) {
             if (!IsValidIndex(tempMoves[i]))
                 continue;
             GameObject obj = GetObjectOnGrid(tempMoves[i]);
-            if (obj == null)
+            if (obj == null && !supporting)
                 possibleMoves.Add(tempMoves[i]);
             else {
-                if (CheckForEnemyPiece(pieceGridPos, tempMoves[i]))
+                if (IsEnemyOrSupportingPiece(pieceGridPos, tempMoves[i], supporting))
                     possibleMoves.Add(tempMoves[i]);
             }
         }
     }
 
-    private List<Vector2> GetPawnMoves(Vector2 pieceGridPos) {
+    private List<Vector2> GetPawnMoves(Vector2 pieceGridPos, bool supporting) {
         List<Vector2> possibleMoves = new List<Vector2>();
         GameObject pawnObj = GetObjectOnGrid(pieceGridPos);
         bool isWhitePawn = (pawnObj.tag == Config.WHITE_TAG);
@@ -206,18 +206,18 @@ public class GameManager : MonoBehaviour
                 if ((pieceGridPos.y + (i + 1)) > Config.BOARD_BLOCKS)
                     return possibleMoves;
                 GameObject obj1 = GetObjectOnGrid(new Vector2(pieceGridPos.x, pieceGridPos.y + i));
-                if (obj1 == null)
+                if (obj1 == null && !supporting)
                     possibleMoves.Add(new Vector2(pieceGridPos.x, pieceGridPos.y + i));
             }
             else {
                 if ((pieceGridPos.y - i) < 0)
                     return possibleMoves;
                 GameObject obj1 = GetObjectOnGrid(new Vector2(pieceGridPos.x, pieceGridPos.y - i));
-                if (obj1 == null)
+                if (obj1 == null && !supporting)
                     possibleMoves.Add(new Vector2(pieceGridPos.x, pieceGridPos.y - i));
             }
         }
-        PawnKillingMoves(ref possibleMoves, pieceGridPos, isWhitePawn, false);
+        PawnKillingMoves(ref possibleMoves, pieceGridPos, isWhitePawn, supporting);
         return possibleMoves;
     }
 
@@ -279,13 +279,14 @@ public class GameManager : MonoBehaviour
 
         while (startX >= endX && startY <= endY) {
             GameObject obj = GetObjectOnGrid(new Vector2(startX, startY));
-            if (obj == null)
+            if (obj == null && !supporting)
                 possibleMoves.Add(new Vector2(startX, startY));
             else {
                 Vector2 currentPos = new Vector2(startX, startY);
                 if (IsEnemyOrSupportingPiece(pieceGridPos, currentPos, supporting))
                     possibleMoves.Add(new Vector2(startX, startY));
-                break;
+                if(!supporting)
+                    break;
             }
             startX--;
             startY++;
@@ -302,13 +303,14 @@ public class GameManager : MonoBehaviour
 
         while (startX <= endX && startY <= endY) {
             GameObject obj = GetObjectOnGrid(new Vector2(startX, startY));
-            if (obj == null)
+            if (obj == null && !supporting)
                 possibleMoves.Add(new Vector2(startX, startY));
             else {
                 Vector2 currentPos = new Vector2(startX, startY);
                 if (IsEnemyOrSupportingPiece(pieceGridPos, currentPos, supporting))
                     possibleMoves.Add(new Vector2(startX, startY));
-                break;
+                if(!supporting)
+                    break;
             }
             startX++;
             startY++;
@@ -325,13 +327,14 @@ public class GameManager : MonoBehaviour
 
         while (startX >= endX && startY >= endY) {
             GameObject obj = GetObjectOnGrid(new Vector2(startX, startY));
-            if (obj == null)
+            if (obj == null && !supporting)
                 possibleMoves.Add(new Vector2(startX, startY));
             else {
                 Vector2 currentPos = new Vector2(startX, startY);
                 if (IsEnemyOrSupportingPiece(pieceGridPos, currentPos, supporting))
                     possibleMoves.Add(new Vector2(startX, startY));
-                break;
+                if(!supporting)
+                    break;
             }
             startX--;
             startY--;
@@ -348,13 +351,14 @@ public class GameManager : MonoBehaviour
 
         while (startX <= endX && startY >= endY) {
             GameObject obj = GetObjectOnGrid(new Vector2(startX, startY));
-            if (obj == null)
+            if (obj == null && !supporting)
                 possibleMoves.Add(new Vector2(startX, startY));
             else {
                 Vector2 currentPos = new Vector2(startX, startY);
                 if (IsEnemyOrSupportingPiece(pieceGridPos, currentPos, supporting))
                     possibleMoves.Add(new Vector2(startX, startY));
-                break;
+                if(!supporting)
+                    break;
             }
             startX++;
             startY--;
@@ -412,13 +416,15 @@ public class GameManager : MonoBehaviour
             }
         }
         else {
+            if (supporting)
+                return false;
             moves.Add(currXY);
         }
         return true;
     }
 
     private bool IsEnemyOrSupportingPiece(Vector2 pieceGridPos, Vector2 currentGridPos, bool supporting) {
-        bool isSupporting = IsSupportingThePiece(pieceGridPos, supporting);
+        bool isSupporting = IsSupportingThePiece(currentGridPos, supporting);
         if (supporting)
             return isSupporting;
         bool isEnemy = CheckForEnemyPiece(pieceGridPos, currentGridPos);
@@ -508,6 +514,8 @@ public class GameManager : MonoBehaviour
         List<GameObject> availablePieces = GetAvailablePieces(tag);
         for (int i = 0; i < availablePieces.Count; ++i) {
             Vector2 gridPos = GetGridIndex(availablePieces[i].transform.position);
+            if (supporting && gameplayScene.aiKingCheckmatePlayerPiece == gridPos)
+                continue;
             List<Vector2> possibleMoves = GetPossibleMoves(gridPos, supporting);
             if (possibleMoves.Count <= 0)
                 continue;
@@ -782,7 +790,7 @@ public class GameManager : MonoBehaviour
         gameplayScene.aiKingCheckmatePlayerPiece = targetPos;
         List<Vector2> movablePieces = GetMovablePieceGridIndex(myTag, true); // wrong code here correct it
         gameplayScene.ResetAIKingCheckmatePiece();
-        return movablePieces.Contains(targetPos);
+        return movablePieces.Count > 0;
     }
 
     public Vector2 GetSafeZoneToMove(List<Vector2> movableRange, string myTag) {

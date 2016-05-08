@@ -217,11 +217,11 @@ public class GameplayScene : MonoBehaviour {
         TogglePieceSelection(gridIndex);
         if (selectionPlane == null)
             return;
-        if (!possibleMoves.Contains(gridIndex)){
-            ToggleHighlightEnemyPieces(possibleMoves, false);
-            DeselectLastSelectedPiece();
-            return;
-        }
+        //if (!possibleMoves.Contains(gridIndex)){
+        //    ToggleHighlightEnemyPieces(possibleMoves, false);
+        //    DeselectLastSelectedPiece();
+        //    return;
+        //}
         UpdatePlayerMove(gridIndex);
         //if single mode
         ai.SetPlayerPiece(gridIndex);
@@ -304,7 +304,7 @@ public class GameplayScene : MonoBehaviour {
         float deltaTime = gameManager.pieceMoveSpeed / Config.BOARD_BLOCKS;
         return totalBLocks * deltaTime;
     }
-
+    
     private void MoveKilledPiecesToTrash(Vector2 gridIndex) {
         GameObject obj = gameManager.GetObjectOnGrid(gridIndex);
         ToggleObjColor(obj, Color.white);
