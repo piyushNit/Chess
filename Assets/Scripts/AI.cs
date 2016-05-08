@@ -120,10 +120,11 @@ public class AI : MonoBehaviour {
                 KillThePiece(piecesChallangingTheKing[0]);
             else {
                 bool isMovedToSafeZone = MoveToSafeZone();
-                // player piece and king piece block code here
-                //DefendTheKing()
-                if (!isMovedToSafeZone)
-                    CommitLose();
+                if (!isMovedToSafeZone) {
+                    bool defendKing = DefendTheKing();
+                    if (!defendKing)
+                        CommitLose();
+                }
             }
         }
     }
@@ -191,14 +192,28 @@ public class AI : MonoBehaviour {
         return (x == 1 || y == 1) ? true : false;
     }
 
-    private void DefendTheKing() {
+    private bool DefendTheKing() {
+        Vector2 kingPos = gameManager.GetPieceGridPosByString(Config.KING, myTag);
+        List<Vector2> inbetweenBlocks = gameManager.GetInBetweenBlocks(kingPos, playerPiece);
+        List<GameObject> availablePieces = gameManager.GetAvailablePiecesWithoutKing(myTag);
+        Config.KillingPrioriety killingPrioriety = new Config.KillingPrioriety();
+        killingPrioriety.pieceGridPos = Vector2.zero;
 
-        //Vector2 kingPos = gameManager.GetPieceGridPosByString(Config.KING, myTag);
-        //List<Vector2> inbetweenBlocks = gameManager.GetInBetweenBlocks(kingPos, playerPiece);
-        //for (int i = 0; i < inbetweenBlocks.Count; ++i) {
-        //    Debug.Log("X: " + inbetweenBlocks[i].x + " y: " + inbetweenBlocks[i].y);
-        //}
-        //Vector2 targetedGridPos = Vector2.zero;
+        for (int i = 0; i < availablePieces.Count; ++i) {
+            Vector2 gridIndex = gameManager.GetGridIndex(availablePieces[i].transform.position);
+            List<Vector2> movingAreas = gameManager.GetPossibleMoves(gridIndex, false);
+            for (int j = 0; j < inbetweenBlocks.Count; ++j) {
+                if (!movingAreas.Contains(inbetweenBlocks[j]))
+                    continue;
+                killingPrioriety.pieceGridPos = gridIndex;
+                killingPrioriety.targetGridPos = inbetweenBlocks[j];
+            }
+        }
+
+        if (killingPrioriety.pieceGridPos == Vector2.zero)
+            return false;
+        gameplayScene.UpdatePlayerMove(killingPrioriety.pieceGridPos, killingPrioriety.targetGridPos);
+        return true;
     }
 
     public void SetPlayerPiece(Vector2 gridPos) {
