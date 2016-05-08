@@ -217,11 +217,11 @@ public class GameplayScene : MonoBehaviour {
         TogglePieceSelection(gridIndex);
         if (selectionPlane == null)
             return;
-        //if (!possibleMoves.Contains(gridIndex)){
-        //    ToggleHighlightEnemyPieces(possibleMoves, false);
-        //    DeselectLastSelectedPiece();
-        //    return;
-        //}
+        if (!possibleMoves.Contains(gridIndex)) {
+            ToggleHighlightEnemyPieces(possibleMoves, false);
+            DeselectLastSelectedPiece();
+            return;
+        }
         UpdatePlayerMove(gridIndex);
         //if single mode
         ai.SetPlayerPiece(gridIndex);
@@ -234,7 +234,6 @@ public class GameplayScene : MonoBehaviour {
             MoveKilledPiecesToTrash(targetGridIndex);
         int key = gameManager.GetIndexKey(targetGridIndex);
         UpdateStatesInGameManager(key, selectedPiece.gameObject);
-        Vector3 newPosition = gameManager.GetGlobalCoords(targetGridIndex);
 
         float time = GetTotalMovingTime(targetGridIndex);
         audioSrc.Play();
