@@ -28,6 +28,8 @@ public class GameplayScene : MonoBehaviour {
     public bool aiTurn = false;
     public bool isAI = true;
 
+    Stack<Config.PieceAction> undoQueue;
+
     //AI related code
     AI ai;
     public Vector2 aiKingCheckmatePlayerPiece = Vector2.zero;
@@ -51,6 +53,7 @@ public class GameplayScene : MonoBehaviour {
         //temp initilize here
         ai = GameObject.FindObjectOfType<AI>();
         chessBoardProperties = GameObject.FindObjectOfType<ChessBoardProperties>();
+        undoQueue = new Stack<Config.PieceAction>();
         InitHUD();
     }
 
@@ -230,18 +233,24 @@ public class GameplayScene : MonoBehaviour {
     }
 
     private void UpdatePlayerMove(Vector2 targetGridIndex) {
+        UpdateUndoQueue(targetGridIndex);
         if (gameManager.CanKillPiece(targetGridIndex))
             MoveKilledPiecesToTrash(targetGridIndex);
+        UpdatePlayerAction(targetGridIndex);
+    }
+
+    private void UpdatePlayerAction(Vector2 targetGridIndex) {
         int key = gameManager.GetIndexKey(targetGridIndex);
         UpdateStatesInGameManager(key, selectedPiece.gameObject);
 
         float time = GetTotalMovingTime(targetGridIndex);
         audioSrc.Play();
-        StartCoroutine(MoveAnimation(targetGridIndex, selectedPiece.gameObject, time));
+        StartCoroutine(MoveAnimation(targetGridIndex, selectedPiece.gameObject, time, false));
         UpdateHUD();
     }
 
     public void UpdatePlayerMove(Vector2 playerGridIndex, Vector2 targetGridIndex) {
+        UpdateUndoQueue(targetGridIndex);
         if (gameManager.CanKillPiece(targetGridIndex))
             MoveKilledPiecesToTrash(targetGridIndex);
         int key = gameManager.GetIndexKey(targetGridIndex);
@@ -250,16 +259,16 @@ public class GameplayScene : MonoBehaviour {
 
         float time = GetTotalMovingTime(targetGridIndex, playerPiece);
         audioSrc.Play();
-        StartCoroutine(MoveAnimation(targetGridIndex, playerPiece, time));
+        StartCoroutine(MoveAnimation(targetGridIndex, playerPiece, time, false));
         UpdateHUD();
     }
 
-    IEnumerator MoveAnimation(Vector2 targetGridIndex, GameObject playerPiece, float time) {
+    IEnumerator MoveAnimation(Vector2 targetGridIndex, GameObject playerPiece, float time, bool isUndo) {
         Vector3 newPosition = gameManager.GetGlobalCoords(targetGridIndex);
-
         iTween.MoveTo(playerPiece.gameObject, newPosition, time);
         yield return new WaitForSeconds(time + 0.5f);
-        PlayAITurn();
+        if (!isUndo)
+            PlayAITurn();
     }
 
     private void UpdateHUD() {
@@ -343,5 +352,39 @@ public class GameplayScene : MonoBehaviour {
 
     public void ResetAIKingCheckmatePiece() {
         aiKingCheckmatePlayerPiece = Vector2.zero;
+    }
+
+    public void UpdateUndoQueue(Vector2 targetGridIndex) {
+        Config.PieceAction pieceAction = new Config.PieceAction();
+        Vector2 currPos = gameManager.GetGridIndex(selectedPiece.transform.position);
+        Debug.Log("undo index: " + currPos);
+        pieceAction.pieceGridPos = currPos;
+        pieceAction.pieceObj = selectedPiece.gameObject;
+
+        if (gameManager.CanKillPiece(targetGridIndex)) {
+            pieceAction.currGridPos = targetGridIndex;
+            pieceAction.isKilling = true;
+            pieceAction.killedPiece = gameManager.GetObjectOnGrid(targetGridIndex);
+        }
+
+        undoQueue.Push(pieceAction);
+    }
+
+    public void UndoTheStep() {
+        if (undoQueue.Count <= 0)
+            return;
+        Config.PieceAction pieceAction = undoQueue.Pop();
+        int key = gameManager.GetIndexKey(pieceAction.pieceGridPos);
+        UpdateStatesInGameManager(key, pieceAction.pieceObj);
+
+        float time = GetTotalMovingTime(pieceAction.pieceGridPos, pieceAction.pieceObj);
+        audioSrc.Play();
+        StartCoroutine(MoveAnimation(pieceAction.pieceGridPos, pieceAction.pieceObj, time, true));
+
+        if (!pieceAction.isKilling)
+            return;
+        time = GetTotalMovingTime(pieceAction.currGridPos, pieceAction.killedPiece);
+        StartCoroutine(MoveAnimation(pieceAction.currGridPos, pieceAction.killedPiece, time, true));
+        //write further code from here
     }
 }

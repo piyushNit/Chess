@@ -30,10 +30,18 @@ public class Config {
 
     public static float SELECT_UP_MOVE = 1.2f;
 
-    public struct KillingPrioriety
-    {
+    public struct KillingPrioriety {
         public int prioriety;
         public Vector2 pieceGridPos;
         public Vector2 targetGridPos;
+    }
+
+    public struct PieceAction {
+        public Vector2 pieceGridPos;
+        public Vector2 currGridPos;
+        public GameObject pieceObj;
+        //public bool isDead;
+        public bool isKilling;
+        public GameObject killedPiece;
     }
 }

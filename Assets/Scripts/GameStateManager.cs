@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class GameStateManager : MonoBehaviour {
     private static GameStateManager _instance;
@@ -11,5 +12,10 @@ public class GameStateManager : MonoBehaviour {
 
     public void GameComplete() {
         Debug.Log("Game complete");
+    }
+
+    public void ResetTheGame() {
+        Scene scene = SceneManager.GetActiveScene();
+        SceneManager.LoadScene(scene.name);
     }
 }
