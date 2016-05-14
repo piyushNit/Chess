@@ -11,13 +11,7 @@ public class AI : MonoBehaviour {
     private List<Vector2> justMovablePieces;
     private List<Config.KillingPrioriety> killingPieces;
     private List<Config.KillingPrioriety> piecesInDanger;
-    //private List<Vector2> kingKillingPieces;
 
-    //struct KillingPrioriety {
-    //    public int prioriety;
-    //    public Vector2 pieceGridPos;
-    //    public Vector2 targetGridPos;
-    //}
 
     GameplayScene gameplayScene;
     private Vector2 kingPos;
@@ -48,7 +42,6 @@ public class AI : MonoBehaviour {
     public void PlayAiTurn() {
         if (gameplayScene.gameComplete)
             return;
-
         AnalyzeChessBoard();
         if (IsCheckMate())
             CheckMateAnalysis();
@@ -65,7 +58,6 @@ public class AI : MonoBehaviour {
     }
 
     private void AnalyzePieceToPlay() {
-
     }
 
     private void ResetVariables() {
@@ -99,17 +91,17 @@ public class AI : MonoBehaviour {
     }
 
     private void CheckMateAnalysis() {
-        List<Vector2> piecesChallangingTheKing = new List<Vector2>();
-        piecesChallangingTheKing = FindPiecesChallingKing();
-        bool isSinglePieceChallanging = piecesChallangingTheKing.Count == 1;
-        if (isSinglePieceChallanging)
-            UpdateForSingleStrategy(piecesChallangingTheKing);
-        else
+        //List<Vector2> piecesChallangingTheKing = new List<Vector2>();
+        //piecesChallangingTheKing = FindPiecesChallingKing();
+        //bool isSinglePieceChallanging = piecesChallangingTheKing.Count == 1;
+        //if (isSinglePieceChallanging)
+        //    UpdateForSingleStrategy(piecesChallangingTheKing);
+        //else
 
         DefendTheKing();
     }
 
-    private void UpdateForSingleStrategy(List<Vector2> piecesChallangingTheKing) {
+    /*private void UpdateForSingleStrategy(List<Vector2> piecesChallangingTheKing) {
         bool isNoRange = IsTargettedPieceHavingNoRange(piecesChallangingTheKing);
         bool isPerfectStrategy = isNoRange ? IsPerfectStrategy(piecesChallangingTheKing[0]) : false;
         if (isPerfectStrategy)
@@ -128,7 +120,7 @@ public class AI : MonoBehaviour {
             }
         }
     }
-
+    */
     private void AnalyzeToDefendPerfectStrategy(Vector2 targetPiece) {
         bool isKilledByOther = CanKillByOtherPieces(targetPiece);
         if (isKilledByOther)
@@ -192,28 +184,51 @@ public class AI : MonoBehaviour {
         return (x == 1 || y == 1) ? true : false;
     }
 
-    private bool DefendTheKing() {
-        Vector2 kingPos = gameManager.GetPieceGridPosByString(Config.KING, myTag);
-        List<Vector2> inbetweenBlocks = gameManager.GetInBetweenBlocks(kingPos, playerPiece);
-        List<GameObject> availablePieces = gameManager.GetAvailablePiecesWithoutKing(myTag);
+    private void DefendTheKing() {
+        List<Vector2> piecesChallangingTheKing = new List<Vector2>();
+        piecesChallangingTheKing = FindPiecesChallingKing();
+        //kill the piece by lowest prioriety
+        bool isKilledByOtherPiece = KillThePieceWithLowestProriety(piecesChallangingTheKing);
+        if (isKilledByOtherPiece)
+            return;
+        bool isBlockedTheWayToSaveTheKing = BlockTheWayToSaveTheKing(piecesChallangingTheKing);
+        if (isBlockedTheWayToSaveTheKing)
+            return;
+        //if not kill then find the save zone to move the king
+        // if not finding safe zone then commit lose
+    }
+
+    private bool KillThePieceWithLowestProriety(List<Vector2> piecesChllangingTheking) {
+        List<Config.KillingPrioriety> aiPiecesKillingProrities = FindPiecesKilledByLowestPrioriety(piecesChllangingTheking);
+        if (aiPiecesKillingProrities.Count == 0)
+            return false;
+        Config.KillingPrioriety killingPrioriety = aiPiecesKillingProrities[0];
+        UpdateAIMoveingPieceWithTarget(killingPrioriety.pieceGridPos, killingPrioriety.targetGridPos);
+        return true;
+    }
+
+    private bool BlockTheWayToSaveTheKing(List<Vector2> piecesChallangingTheKing) {
         Config.KillingPrioriety killingPrioriety = new Config.KillingPrioriety();
         killingPrioriety.pieceGridPos = Vector2.zero;
-
-        for (int i = 0; i < availablePieces.Count; ++i) {
-            Vector2 gridIndex = gameManager.GetGridIndex(availablePieces[i].transform.position);
-            List<Vector2> movingAreas = gameManager.GetPossibleMoves(gridIndex, false);
-            for (int j = 0; j < inbetweenBlocks.Count; ++j) {
-                if (!movingAreas.Contains(inbetweenBlocks[j]))
-                    continue;
-                killingPrioriety.pieceGridPos = gridIndex;
-                killingPrioriety.targetGridPos = inbetweenBlocks[j];
-            }
-        }
+        gameManager.UpdateWithBlockingPieces(ref killingPrioriety, piecesChallangingTheKing, myTag);
 
         if (killingPrioriety.pieceGridPos == Vector2.zero)
             return false;
         gameplayScene.UpdatePlayerMove(killingPrioriety.pieceGridPos, killingPrioriety.targetGridPos);
         return true;
+    }
+
+    private List<Config.KillingPrioriety> FindPiecesKilledByLowestPrioriety(List<Vector2> piecesChallangingTheKing) {
+        List<Config.KillingPrioriety> possibleKillingProrities = new List<Config.KillingPrioriety>();
+        for (int i = 0; i < killingPieces.Count; ++i) {
+            for (int j = 0; j < piecesChallangingTheKing.Count; ++j) {
+                bool canBeKilled = IsContainingKillingPiece(killingPieces[i], piecesChallangingTheKing[j]);
+                if (canBeKilled)
+                    possibleKillingProrities.Add(killingPieces[i]);
+            }
+        }
+        gameManager.SortKillingPiecesBasedOnProriety(ref possibleKillingProrities);
+        return possibleKillingProrities;
     }
 
     public void SetPlayerPiece(Vector2 gridPos) {
@@ -232,14 +247,16 @@ public class AI : MonoBehaviour {
     private void UpdateAIMovingPiece() {
         if (justMovablePieces.Count <= 0)
             return;
-        //send message no way to move
         int randomIndex = Random.Range(0, justMovablePieces.Count);
         Vector2 selMovingPiece = justMovablePieces[randomIndex];
-        gameplayScene.SelectBlock(selMovingPiece);
-
         List<Vector2> movingRange = gameManager.GetPossibleMoves(selMovingPiece, false);
         int moveIndex = Random.Range(0, movingRange.Count);
-        StartCoroutine(TakeNextStep(movingRange[moveIndex]));
+        UpdateAIMoveingPieceWithTarget(selMovingPiece, movingRange[moveIndex]);
+    }
+
+    private void UpdateAIMoveingPieceWithTarget(Vector2 piece, Vector2 targetPiece) {
+        gameplayScene.SelectBlock(piece);
+        StartCoroutine(TakeNextStep(targetPiece));
     }
 
     private void KillTheKing(Config.KillingPrioriety value) {

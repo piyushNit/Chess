@@ -29,10 +29,11 @@ public class GameplayScene : MonoBehaviour {
     public bool isAI = true;
 
     Stack<Config.PieceAction> undoQueue;
+    private bool isPlaying = false;
 
     //AI related code
     AI ai;
-    public Vector2 aiKingCheckmatePlayerPiece = Vector2.zero;
+    public Vector2 aiKingCheckmateByPlayerPiece = Vector2.zero;
 
     void Start(){
         InitMemberVars();
@@ -68,6 +69,7 @@ public class GameplayScene : MonoBehaviour {
         bestMoveText.text = "Best Moves: " + bestMove;
     }
 
+
 	void Update(){
         if (!canPlayTheGame || gameComplete)
             return;
@@ -80,8 +82,8 @@ public class GameplayScene : MonoBehaviour {
 			if(Physics.Raycast(ray, out hit, 500f)) {
 				if(!IsTouchOnBoard(hit.point))
 					return;
-                if (!IsValidTeamPeace(hit.point))
-                    return;
+                //if (!IsValidTeamPeace(hit.point))
+                //    return;
                 SelectBlock(gameManager.GetGridIndex(hit.point));
 			}
 		}
@@ -121,6 +123,7 @@ public class GameplayScene : MonoBehaviour {
     }
 
     public void SelectBlock(Vector2 gridIndex) {
+        //Debug.Log("x: " + gridIndex.x + " y: " + gridIndex.y);
         UpdateSeclectedBlock(gridIndex);
         if (selectedPiece != null)
             UpdatePossibleMoves(gridIndex);
@@ -144,6 +147,7 @@ public class GameplayScene : MonoBehaviour {
         possibleMoves = gameManager.GetPossibleMoves(gridIndex, false);
         ToggleHighlightEnemyPieces(possibleMoves, true);
         PlayerCanMovePositions(possibleMoves);
+        isPlaying = true;
     }
 
     private void ToggleHighlightEnemyPieces(List<Vector2> possibleMoves, bool value) {
@@ -230,10 +234,12 @@ public class GameplayScene : MonoBehaviour {
         ai.SetPlayerPiece(gridIndex);
         ToggleHighlightEnemyPieces(possibleMoves, false);
         DeselectLastSelectedPiece();
+        isPlaying = false;
     }
 
     private void UpdatePlayerMove(Vector2 targetGridIndex) {
-        UpdateUndoQueue(targetGridIndex);
+        Vector2 playerPiecePos = gameManager.GetGridIndex(selectedPiece.transform.position);
+        UpdateUndoQueue(playerPiecePos, targetGridIndex);
         if (gameManager.CanKillPiece(targetGridIndex))
             MoveKilledPiecesToTrash(targetGridIndex);
         UpdatePlayerAction(targetGridIndex);
@@ -244,31 +250,44 @@ public class GameplayScene : MonoBehaviour {
         UpdateStatesInGameManager(key, selectedPiece.gameObject);
 
         float time = GetTotalMovingTime(targetGridIndex);
-        audioSrc.Play();
         StartCoroutine(MoveAnimation(targetGridIndex, selectedPiece.gameObject, time, false));
         UpdateHUD();
+        UpdateMoves(selectedPiece.gameObject);
     }
 
     public void UpdatePlayerMove(Vector2 playerGridIndex, Vector2 targetGridIndex) {
-        UpdateUndoQueue(targetGridIndex);
+        UpdateUndoQueue(playerGridIndex, targetGridIndex);
         if (gameManager.CanKillPiece(targetGridIndex))
             MoveKilledPiecesToTrash(targetGridIndex);
         int key = gameManager.GetIndexKey(targetGridIndex);
         GameObject playerPiece = gameManager.GetObjectOnGrid(playerGridIndex);
+        UpdateMoves(playerPiece);
         UpdateStatesInGameManager(key, playerPiece);
 
         float time = GetTotalMovingTime(targetGridIndex, playerPiece);
-        audioSrc.Play();
         StartCoroutine(MoveAnimation(targetGridIndex, playerPiece, time, false));
         UpdateHUD();
     }
 
+    public void UpdateMoves(GameObject obj) {
+        PieceProperties pieceProp = obj.GetComponent<PieceProperties>();
+        pieceProp.UpdateMoves();
+    }
+
     IEnumerator MoveAnimation(Vector2 targetGridIndex, GameObject playerPiece, float time, bool isUndo) {
+        if (!isUndo)
+            PlayAITurn();
+        audioSrc.Play();
         Vector3 newPosition = gameManager.GetGlobalCoords(targetGridIndex);
         iTween.MoveTo(playerPiece.gameObject, newPosition, time);
         yield return new WaitForSeconds(time + 0.5f);
-        if (!isUndo)
-            PlayAITurn();
+        StartCoroutine(PlayAIItsTurn(time));
+    }
+
+    IEnumerator PlayAIItsTurn(float time) {
+        yield return new WaitForSeconds(time + 0.5f);
+        if(aiTurn)
+            ai.PlayAiTurn();
     }
 
     private void UpdateHUD() {
@@ -281,9 +300,10 @@ public class GameplayScene : MonoBehaviour {
     }
 
     private void PlayAITurn() {
+        if (!isAI)
+            return;
         aiTurn = !aiTurn;
-        if (aiTurn)
-            ai.PlayAiTurn();
+            
     }
 
     private void UpdateStatesInGameManager(int key, GameObject playerPiece) {
@@ -351,15 +371,13 @@ public class GameplayScene : MonoBehaviour {
     }
 
     public void ResetAIKingCheckmatePiece() {
-        aiKingCheckmatePlayerPiece = Vector2.zero;
+        aiKingCheckmateByPlayerPiece = Vector2.zero;
     }
 
-    public void UpdateUndoQueue(Vector2 targetGridIndex) {
+    public void UpdateUndoQueue(Vector2 currPos, Vector2 targetGridIndex) {
         Config.PieceAction pieceAction = new Config.PieceAction();
-        Vector2 currPos = gameManager.GetGridIndex(selectedPiece.transform.position);
-        Debug.Log("undo index: " + currPos);
         pieceAction.pieceGridPos = currPos;
-        pieceAction.pieceObj = selectedPiece.gameObject;
+        pieceAction.pieceObj = gameManager.GetObjectOnGrid(currPos);
 
         if (gameManager.CanKillPiece(targetGridIndex)) {
             pieceAction.currGridPos = targetGridIndex;
@@ -371,12 +389,12 @@ public class GameplayScene : MonoBehaviour {
     }
 
     public void UndoTheStep() {
-        if (undoQueue.Count <= 0)
+        if (undoQueue.Count <= 0 || isPlaying)
             return;
         Config.PieceAction pieceAction = undoQueue.Pop();
         int key = gameManager.GetIndexKey(pieceAction.pieceGridPos);
         UpdateStatesInGameManager(key, pieceAction.pieceObj);
-
+        UndoPieceMoves(pieceAction.pieceObj);
         float time = GetTotalMovingTime(pieceAction.pieceGridPos, pieceAction.pieceObj);
         audioSrc.Play();
         StartCoroutine(MoveAnimation(pieceAction.pieceGridPos, pieceAction.pieceObj, time, true));
@@ -386,5 +404,10 @@ public class GameplayScene : MonoBehaviour {
         time = GetTotalMovingTime(pieceAction.currGridPos, pieceAction.killedPiece);
         StartCoroutine(MoveAnimation(pieceAction.currGridPos, pieceAction.killedPiece, time, true));
         //write further code from here
+    }
+
+    private void UndoPieceMoves(GameObject obj) {
+        PieceProperties pieceProp = obj.GetComponent<PieceProperties>();
+        pieceProp.UndoMoves();
     }
 }

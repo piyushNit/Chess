@@ -44,4 +44,8 @@ public class Config {
         public bool isKilling;
         public GameObject killedPiece;
     }
+
+    public static bool EASY = true;
+    public static bool MEDIUM = true;
+    public static bool HARD = true;
 }
