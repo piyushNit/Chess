@@ -14,26 +14,29 @@ public class GameplayScene : MonoBehaviour {
     [SerializeField] private Text bestMoveText;
     [SerializeField] private Text moveText;
 
+    public bool aiTurn = false;
+    public bool isAI = true;
+    public bool gameComplete { get { return _gameComplete; } }
+
     private int score = 0;
     private int moves = 0;
     public string myTag = Config.WHITE_TAG;
     private Transform selectedPiece;
     private AudioSource audioSrc;
-    GameObject[] selectedBlocks;
-    GameObject planeHolder;
-    List<Vector2> possibleMoves;
+    private GameObject[] selectedBlocks;
+    private GameObject planeHolder;
+    private List<Vector2> possibleMoves;
     private bool _gameComplete = false;
-    public bool gameComplete { get { return _gameComplete; }}
-    ChessBoardProperties chessBoardProperties;
-    public bool aiTurn = false;
-    public bool isAI = true;
-
-    Stack<Config.PieceAction> undoQueue;
+    private ChessBoardProperties chessBoardProperties;
+    private Stack<Config.PieceAction> undoQueue;
     private bool isPlaying = false;
+    private GameStateManager gsm;
 
     //AI related code
     AI ai;
-    public Vector2 aiKingCheckmateByPlayerPiece = Vector2.zero;
+    [HideInInspector] public Vector2 aiKingCheckmateByPlayerPiece = Vector2.zero;
+
+    private HUDController hud;
 
     void Start(){
         InitMemberVars();
@@ -55,6 +58,8 @@ public class GameplayScene : MonoBehaviour {
         ai = GameObject.FindObjectOfType<AI>();
         chessBoardProperties = GameObject.FindObjectOfType<ChessBoardProperties>();
         undoQueue = new Stack<Config.PieceAction>();
+        hud = GameObject.FindObjectOfType<HUDController>();
+        gsm = GameObject.FindObjectOfType<GameStateManager>();
         InitHUD();
     }
 
@@ -65,7 +70,7 @@ public class GameplayScene : MonoBehaviour {
     }
 
     void InitBestMove() {
-        int bestMove = PlayerPrefs.GetInt(Keys.KEY_BEST_MOVE);
+        int bestMove = gsm.GetBestMoves();
         bestMoveText.text = "Best Moves: " + bestMove;
     }
 
@@ -275,13 +280,13 @@ public class GameplayScene : MonoBehaviour {
     }
 
     IEnumerator MoveAnimation(Vector2 targetGridIndex, GameObject playerPiece, float time, bool isUndo) {
-        if (!isUndo)
-            PlayAITurn();
+        //if (!isUndo)
+        //    PlayAITurn();
         audioSrc.Play();
         Vector3 newPosition = gameManager.GetGlobalCoords(targetGridIndex);
         iTween.MoveTo(playerPiece.gameObject, newPosition, time);
         yield return new WaitForSeconds(time + 0.5f);
-        StartCoroutine(PlayAIItsTurn(time));
+        //StartCoroutine(PlayAIItsTurn(time));
     }
 
     IEnumerator PlayAIItsTurn(float time) {
@@ -363,11 +368,13 @@ public class GameplayScene : MonoBehaviour {
         _gameComplete = true;
         Debug.Log("game over: " + winnignTeam + " has won the game");
         UpdateBestMoves();
+        hud.ShowGameOver();
+
     }
     void UpdateBestMoves() {
-        int bestMove = PlayerPrefs.GetInt(Keys.KEY_BEST_MOVE);
+        int bestMove = gsm.GetBestMoves();
         if (moves < bestMove || bestMove == 0)
-            PlayerPrefs.SetInt(Keys.KEY_BEST_MOVE, moves);
+            gsm.SetBestMoves(moves);
     }
 
     public void ResetAIKingCheckmatePiece() {
