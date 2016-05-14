@@ -402,6 +402,8 @@ public class GameplayScene : MonoBehaviour {
         if (!pieceAction.isKilling)
             return;
         time = GetTotalMovingTime(pieceAction.currGridPos, pieceAction.killedPiece);
+        key = gameManager.GetIndexKey(pieceAction.currGridPos);
+        UpdateStatesInGameManager(key, pieceAction.killedPiece);
         StartCoroutine(MoveAnimation(pieceAction.currGridPos, pieceAction.killedPiece, time, true));
         //write further code from here
     }
