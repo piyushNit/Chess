@@ -748,6 +748,7 @@ public class GameManager : MonoBehaviour
     public void SetKillingPriorietyVars(ref Config.KillingPrioriety hunterPiece, Vector2 gridPos, Vector2 targetPos) {
         hunterPiece.pieceGridPos = gridPos;
         hunterPiece.targetGridPos = targetPos;
+        hunterPiece.isKilling = true;
     }
 
     public bool CheckAndSetSupremePrioriety(ref List<Config.KillingPrioriety> killingPieces, Config.KillingPrioriety hunterPiece) {
@@ -816,8 +817,7 @@ public class GameManager : MonoBehaviour
         return move;
     }
 
-    public void SortKillingPiecesBasedOnProriety(ref List<Config.KillingPrioriety> piecesKillingEnemies)
-    {
+    public void SortKillingPiecesBasedOnProriety(ref List<Config.KillingPrioriety> piecesKillingEnemies) {
         for (int i = 0; i < piecesKillingEnemies.Count; ++i)
         {
             for (int j = i + 1; j < piecesKillingEnemies.Count; ++j)
@@ -863,5 +863,17 @@ public class GameManager : MonoBehaviour
                 }
             }
         }
+    }
+
+    public bool IsSafePositionToMove(Vector2 movingPos, string tag) {
+        tag = RevertTag(tag);
+        List<Vector2> movingPieces = GetMovablePieceGridIndex(tag, false);
+        for (int i = 0; i < movingPieces.Count; ++i) {
+            List<Vector2> possibleMoves = GetPossibleMoves(movingPieces[i], false);
+            bool isContainsMovingPos = possibleMoves.Contains(movingPos);
+            if (isContainsMovingPos)
+                return false;
+        }
+        return true;
     }
 }

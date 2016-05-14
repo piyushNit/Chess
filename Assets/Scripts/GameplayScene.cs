@@ -71,6 +71,9 @@ public class GameplayScene : MonoBehaviour {
 
 
 	void Update(){
+        if (Input.GetKeyDown(KeyCode.Escape))
+            Application.Quit();
+
         if (!canPlayTheGame || gameComplete)
             return;
         if (aiTurn)
@@ -98,9 +101,6 @@ public class GameplayScene : MonoBehaviour {
                 SelectBlock(gameManager.GetGridIndex(hit.point));
             }
         }
-
-        if (Input.GetKeyDown(KeyCode.Escape))
-            Application.Quit();
     }
 
     private bool IsValidTeamPeace(Vector3 touchPos) {

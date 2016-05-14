@@ -61,7 +61,7 @@ public class CameraMovement : MonoBehaviour {
         float deltaX = initTouch.position.x - currTouch.position.x;
         float deltaY = initTouch.position.y - currTouch.position.y;
         xRotation -= deltaY * Time.deltaTime * rotationSpeed;
-        yRotation -= deltaX * Time.deltaTime * rotationSpeed;
+        yRotation += deltaX * Time.deltaTime * rotationSpeed;
 
         this.transform.eulerAngles = new Vector3(xRotation, yRotation, 0f);
     }

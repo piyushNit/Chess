@@ -90,16 +90,16 @@ public class AI : MonoBehaviour {
         kingPos = gameManager.GetPieceGridPosByString(Config.KING, myTag);
     }
 
-    private void CheckMateAnalysis() {
-        //List<Vector2> piecesChallangingTheKing = new List<Vector2>();
-        //piecesChallangingTheKing = FindPiecesChallingKing();
-        //bool isSinglePieceChallanging = piecesChallangingTheKing.Count == 1;
-        //if (isSinglePieceChallanging)
-        //    UpdateForSingleStrategy(piecesChallangingTheKing);
-        //else
+    //private void CheckMateAnalysis() {
+    //    //List<Vector2> piecesChallangingTheKing = new List<Vector2>();
+    //    //piecesChallangingTheKing = FindPiecesChallingKing();
+    //    //bool isSinglePieceChallanging = piecesChallangingTheKing.Count == 1;
+    //    //if (isSinglePieceChallanging)
+    //    //    UpdateForSingleStrategy(piecesChallangingTheKing);
+    //    //else
 
-        DefendTheKing();
-    }
+    //    DefendTheKing();
+    //}
 
     /*private void UpdateForSingleStrategy(List<Vector2> piecesChallangingTheKing) {
         bool isNoRange = IsTargettedPieceHavingNoRange(piecesChallangingTheKing);
@@ -121,6 +121,7 @@ public class AI : MonoBehaviour {
         }
     }
     */
+
     private void AnalyzeToDefendPerfectStrategy(Vector2 targetPiece) {
         bool isKilledByOther = CanKillByOtherPieces(targetPiece);
         if (isKilledByOther)
@@ -184,7 +185,7 @@ public class AI : MonoBehaviour {
         return (x == 1 || y == 1) ? true : false;
     }
 
-    private void DefendTheKing() {
+    private void CheckMateAnalysis() {
         List<Vector2> piecesChallangingTheKing = new List<Vector2>();
         piecesChallangingTheKing = FindPiecesChallingKing();
         //kill the piece by lowest prioriety
@@ -194,6 +195,10 @@ public class AI : MonoBehaviour {
         bool isBlockedTheWayToSaveTheKing = BlockTheWayToSaveTheKing(piecesChallangingTheKing);
         if (isBlockedTheWayToSaveTheKing)
             return;
+        bool isMovedToSafeZone = MoveToSafeZone();
+        if (isMovedToSafeZone)
+            return;
+        CommitLose();
         //if not kill then find the save zone to move the king
         // if not finding safe zone then commit lose
     }
@@ -251,6 +256,8 @@ public class AI : MonoBehaviour {
         Vector2 selMovingPiece = justMovablePieces[randomIndex];
         List<Vector2> movingRange = gameManager.GetPossibleMoves(selMovingPiece, false);
         int moveIndex = Random.Range(0, movingRange.Count);
+        //check whether anyone is targetting the desired position or not
+        //if yes then call the same function - function recurssion
         UpdateAIMoveingPieceWithTarget(selMovingPiece, movingRange[moveIndex]);
     }
 
@@ -292,6 +299,10 @@ public class AI : MonoBehaviour {
 
     private void DecidePieceToMove(List<Config.KillingPrioriety> killingPieces) {
         Config.KillingPrioriety aiMovingPiece = GetAIMovingPiece(killingPieces);
+        if (!aiMovingPiece.isKilling) {
+            UpdateAIMovingPiece();
+            return;
+        }
         gameplayScene.SelectBlock(aiMovingPiece.pieceGridPos);
         StartCoroutine(TakeNextStep(aiMovingPiece.targetGridPos));
     }
@@ -318,6 +329,10 @@ public class AI : MonoBehaviour {
         if(!pieceIsNull && !targetisNull)
             return movingPiece;
         int randomNum = Random.Range(0, killingPieces.Count);
+
+        Vector2 movingPos = killingPieces[randomNum].targetGridPos;
+        bool isSafeToKill = gameManager.IsSafePositionToMove(movingPos, myTag);
+        movingPiece.isKilling = isSafeToKill;
         return killingPieces[randomNum];
     }
 

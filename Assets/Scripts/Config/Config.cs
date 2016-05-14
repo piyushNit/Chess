@@ -34,6 +34,7 @@ public class Config {
         public int prioriety;
         public Vector2 pieceGridPos;
         public Vector2 targetGridPos;
+        public bool isKilling;
     }
 
     public struct PieceAction {
