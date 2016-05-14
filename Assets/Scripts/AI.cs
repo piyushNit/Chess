@@ -12,7 +12,6 @@ public class AI : MonoBehaviour {
     private List<Config.KillingPrioriety> killingPieces;
     private List<Config.KillingPrioriety> piecesInDanger;
 
-
     GameplayScene gameplayScene;
     private Vector2 kingPos;
 
@@ -166,7 +165,7 @@ public class AI : MonoBehaviour {
     }
 
     private void CommitLose() {
-        Debug.Log("Lose the game");
+        gameplayScene.GameOver("AI");
     }
 
     private List<Vector2> FindPiecesChallingKing() {
@@ -321,12 +320,14 @@ public class AI : MonoBehaviour {
         Config.KillingPrioriety movingPiece = new Config.KillingPrioriety();
         int priorietyPiece = Config.NO_PRIORITY;
         for (int i = 0; i < killingPieces.Count; ++i) {
-            if (priorietyPiece < killingPieces[i].prioriety)
+            if (priorietyPiece < killingPieces[i].prioriety) {
                 movingPiece = killingPieces[i];
+                priorietyPiece = movingPiece.prioriety;
+            }
         }
         bool pieceIsNull = (movingPiece.pieceGridPos == Vector2.zero);
         bool targetisNull = (movingPiece.targetGridPos == Vector2.zero);
-        if(!pieceIsNull && !targetisNull)
+        if (!pieceIsNull && !targetisNull)
             return movingPiece;
         int randomNum = Random.Range(0, killingPieces.Count);
 
