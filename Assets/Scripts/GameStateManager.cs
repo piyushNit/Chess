@@ -14,8 +14,19 @@ public class GameStateManager : MonoBehaviour {
         Debug.Log("Game complete");
     }
 
-    public void ResetTheGame() {
-        Scene scene = SceneManager.GetActiveScene();
-        SceneManager.LoadScene(scene.name);
+    public int GetBestMoves() {
+        return PlayerPrefs.GetInt(Keys.KEY_BEST_MOVE);
+    }
+
+    public void SetBestMoves(int moves) {
+        PlayerPrefs.SetInt(Keys.KEY_BEST_MOVE, moves);
+    }
+
+    public int GetBestScore() {
+        return PlayerPrefs.GetInt(Keys.KEY_BEST_SCORE);
+    }
+
+    public void SetBestScore(int score) {
+        PlayerPrefs.SetInt(Keys.KEY_BEST_SCORE, score);
     }
 }
