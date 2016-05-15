@@ -3,6 +3,9 @@ obj/*
 Output/*
 ProjectSettings/*
 Temp/*
+Assets/Fabric/*
+Assets/Plugins/*
+Assets/StreamingAssets/*
 Assembly-CSharp.csproj
 Assembly-CSharp-Editor.csproj
 Assembly-CSharp-firstpass.csproj
