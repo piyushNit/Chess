@@ -1,11 +1,11 @@
 ﻿using UnityEngine;
-using System.Collections;
 
 public class ShareApp : MonoBehaviour {
-    string subject = "WORD-O-MAZE";
+    string subject = "Amazing Chess";
     string body = "PLAY THIS AWESOME GAME. GET IT ON THE PLAYSTORE AT LINK";
 
     public void shareText() {
+        AnalyticsManager.instance.ShareBtnPressed();
         //execute the below lines if being run on a Android device
     #if UNITY_ANDROID
         //Refernece of AndroidJavaClass class for intent
@@ -27,8 +27,8 @@ public class ShareApp : MonoBehaviour {
     #endif
     }
 
-    public void OnRateButtonClick()
-    {
+    public void OnRateButtonClick() {
+        AnalyticsManager.instance.FBLikeBtnPressed();
         #if UNITY_ANDROID
                 Application.OpenURL("https://www.facebook.com/RenGames-764437100281341/?ref=aymt_homepage_panel");
         #elif UNITY_IPHONE

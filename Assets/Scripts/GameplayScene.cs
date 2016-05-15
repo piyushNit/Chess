@@ -37,7 +37,7 @@ public class GameplayScene : MonoBehaviour {
     [HideInInspector] public Vector2 aiKingCheckmateByPlayerPiece = Vector2.zero;
 
     private HUDController hud;
-
+    private ScreenTransManager screenTransMgr;
     void Start(){
         InitMemberVars();
         UpdateSelectionPlane();
@@ -60,6 +60,7 @@ public class GameplayScene : MonoBehaviour {
         undoQueue = new Stack<Config.PieceAction>();
         hud = GameObject.FindObjectOfType<HUDController>();
         gsm = GameObject.FindObjectOfType<GameStateManager>();
+        screenTransMgr = GameObject.FindObjectOfType<ScreenTransManager>();
         InitHUD();
     }
 
@@ -74,10 +75,9 @@ public class GameplayScene : MonoBehaviour {
         bestMoveText.text = "Best Moves: " + bestMove;
     }
 
-
 	void Update(){
         if (Input.GetKeyDown(KeyCode.Escape))
-            Application.Quit();
+            screenTransMgr.GoToMainMenuScene();
 
         if (!canPlayTheGame || gameComplete)
             return;
