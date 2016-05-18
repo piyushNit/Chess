@@ -15,6 +15,8 @@ public class AI : MonoBehaviour {
     GameplayScene gameplayScene;
     private Vector2 kingPos;
 
+    string moveData;
+
     void Start() {
         InitMemberVars();
         //PlayAiTurn();
@@ -36,6 +38,12 @@ public class AI : MonoBehaviour {
         if(gameplayScene == null)
             gameplayScene = GameObject.FindObjectOfType<GameplayScene>();
         piecesInDanger = new List<Config.KillingPrioriety>();
+        LoadMovesDate();
+    }
+
+    private void LoadMovesDate() {
+        TextAsset textAssets = Resources.Load("Test") as TextAsset;
+        moveData = textAssets.text;
     }
 
     public void PlayAiTurn() {
@@ -139,7 +147,7 @@ public class AI : MonoBehaviour {
         }
         Vector2 safeZoneToMove = gameManager.GetSafeZoneToMove(kingMovingAreas, myTag);
         if (safeZoneToMove != Vector2.zero) {
-            gameplayScene.UpdatePlayerMove(kingPos, safeZoneToMove);
+            gameplayScene.UpdatePlayerMove(kingPos, safeZoneToMove, false);
             return true;
         }
         return false;
@@ -199,7 +207,7 @@ public class AI : MonoBehaviour {
             return;
         CommitLose();
         //if not kill then find the save zone to move the king
-        // if not finding safe zone then commit lose
+        //if not finding safe zone then commit lose
     }
 
     private bool KillThePieceWithLowestProriety(List<Vector2> piecesChllangingTheking) {
@@ -249,6 +257,9 @@ public class AI : MonoBehaviour {
     }
 
     private void UpdateAIMovingPiece() {
+        bool moveByMoveData = MoveFromMoveData();
+        if (moveByMoveData)
+            return;
         if (justMovablePieces.Count <= 0)
             return;
         int randomIndex = Random.Range(0, justMovablePieces.Count);
@@ -258,6 +269,19 @@ public class AI : MonoBehaviour {
         //check whether anyone is targetting the desired position or not
         //if yes then call the same function - function recurssion
         UpdateAIMoveingPieceWithTarget(selMovingPiece, movingRange[moveIndex]);
+    }
+
+    private bool MoveFromMoveData() {
+        string nextMove = moveData.Substring(0, 7);
+        Debug.Log(nextMove);
+        Vector2 pickPosition = new Vector2(int.Parse("" + nextMove[0]), int.Parse("" + nextMove[2]));
+        Vector2 destinationPos = new Vector2(int.Parse("" + nextMove[4]), int.Parse("" + nextMove[6]));
+        GameObject obj = gameManager.GetObjectOnGrid(pickPosition);
+        if (obj == null)
+            return false;
+
+        UpdateAIMoveingPieceWithTarget(pickPosition, destinationPos);
+        return true;
     }
 
     private void UpdateAIMoveingPieceWithTarget(Vector2 piece, Vector2 targetPiece) {
