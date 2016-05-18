@@ -43,6 +43,7 @@ public class Config {
         public GameObject pieceObj;
         //public bool isDead;
         public bool isKilling;
+        public bool isCastle;
         public GameObject killedPiece;
     }
 

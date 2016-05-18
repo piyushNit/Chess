@@ -38,6 +38,7 @@ public class GameplayScene : MonoBehaviour {
 
     private HUDController hud;
     private ScreenTransManager screenTransMgr;
+
     void Start(){
         InitMemberVars();
         UpdateSelectionPlane();
@@ -128,7 +129,6 @@ public class GameplayScene : MonoBehaviour {
     }
 
     public void SelectBlock(Vector2 gridIndex) {
-        //Debug.Log("x: " + gridIndex.x + " y: " + gridIndex.y);
         UpdateSeclectedBlock(gridIndex);
         if (selectedPiece != null)
             UpdatePossibleMoves(gridIndex);
@@ -244,10 +244,35 @@ public class GameplayScene : MonoBehaviour {
 
     private void UpdatePlayerMove(Vector2 targetGridIndex) {
         Vector2 playerPiecePos = gameManager.GetGridIndex(selectedPiece.transform.position);
-        UpdateUndoQueue(playerPiecePos, targetGridIndex);
+        UpdateUndoQueue(playerPiecePos, targetGridIndex, false);
+
+        bool castleTheKing = IsCastledTheKing(targetGridIndex);
+        if (castleTheKing)
+            return;
+
         if (gameManager.CanKillPiece(targetGridIndex))
             MoveKilledPiecesToTrash(targetGridIndex);
         UpdatePlayerAction(targetGridIndex);
+    }
+
+    private bool IsCastledTheKing(Vector2 targetGridindex) {
+        string typeStr = selectedPiece.GetComponent<PieceProperties>().typeStr;
+        if (typeStr != Config.KING)
+            return false;
+        Vector2 kingGridPos = gameManager.GetGridIndex(selectedPiece.transform.position);
+        HandleTheCastle(kingGridPos, targetGridindex);
+
+        return true;
+    }
+
+    private void HandleTheCastle(Vector2 kingGridPos, Vector2 movedGridPos) {
+        bool isKingMovedLeft = (int)kingGridPos.x > (int)movedGridPos.x;
+
+        Vector2 rookPos = gameManager.GetProperRook(isKingMovedLeft, movedGridPos);
+        int targetX = isKingMovedLeft ? (int)movedGridPos.x + 1 : (int)movedGridPos.x - 1;
+        Vector2 rookTargetMovePos = new Vector2(targetX, kingGridPos.y);
+        UpdatePlayerAction(movedGridPos);
+        UpdatePlayerMove(rookPos, rookTargetMovePos, true);
     }
 
     private void UpdatePlayerAction(Vector2 targetGridIndex) {
@@ -261,9 +286,15 @@ public class GameplayScene : MonoBehaviour {
     }
 
     public void UpdatePlayerMove(Vector2 playerGridIndex, Vector2 targetGridIndex) {
-        UpdateUndoQueue(playerGridIndex, targetGridIndex);
+        UpdatePlayerMove(playerGridIndex, targetGridIndex, false);
+    }
+
+    public void UpdatePlayerMove(Vector2 playerGridIndex, Vector2 targetGridIndex, bool isCasted) {
+        UpdateUndoQueue(playerGridIndex, targetGridIndex, isCasted);
+
         if (gameManager.CanKillPiece(targetGridIndex))
             MoveKilledPiecesToTrash(targetGridIndex);
+
         int key = gameManager.GetIndexKey(targetGridIndex);
         GameObject playerPiece = gameManager.GetObjectOnGrid(playerGridIndex);
         UpdateMoves(playerPiece);
@@ -381,14 +412,15 @@ public class GameplayScene : MonoBehaviour {
         aiKingCheckmateByPlayerPiece = Vector2.zero;
     }
 
-    public void UpdateUndoQueue(Vector2 currPos, Vector2 targetGridIndex) {
+    public void UpdateUndoQueue(Vector2 currPos, Vector2 targetGridIndex, bool isCastled) {
         Config.PieceAction pieceAction = new Config.PieceAction();
         pieceAction.pieceGridPos = currPos;
         pieceAction.pieceObj = gameManager.GetObjectOnGrid(currPos);
+        pieceAction.isCastle = isCastled;
 
         if (gameManager.CanKillPiece(targetGridIndex)) {
-            pieceAction.currGridPos = targetGridIndex;
             pieceAction.isKilling = true;
+            pieceAction.currGridPos = targetGridIndex;
             pieceAction.killedPiece = gameManager.GetObjectOnGrid(targetGridIndex);
         }
 
@@ -405,6 +437,9 @@ public class GameplayScene : MonoBehaviour {
         float time = GetTotalMovingTime(pieceAction.pieceGridPos, pieceAction.pieceObj);
         audioSrc.Play();
         StartCoroutine(MoveAnimation(pieceAction.pieceGridPos, pieceAction.pieceObj, time, true));
+
+        if (pieceAction.isCastle)
+            UndoTheStep();
 
         if (!pieceAction.isKilling)
             return;

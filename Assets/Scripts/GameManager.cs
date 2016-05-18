@@ -130,7 +130,11 @@ public class GameManager : MonoBehaviour
     }
 
     public List<Vector2> GetKingMoves(Vector2 pieceGridPos, bool supporting) {
-        return GetHorizontalVerticalDigonalMoves(Config.KING_MOVE, pieceGridPos, supporting);
+        List<Vector2> kingMoves = new List<Vector2>();
+        kingMoves.AddRange(GetHorizontalVerticalDigonalMoves(Config.KING_MOVE, pieceGridPos, supporting));
+        kingMoves.AddRange(GetCastleMoves(pieceGridPos));
+
+        return kingMoves;
     }
 
     private List<Vector2> GetQueenMoves(Vector2 pieceGridPos, bool supporting) {
@@ -384,6 +388,78 @@ public class GameManager : MonoBehaviour
         return possibleMoves;
     }
 
+    private List<Vector2> GetCastleMoves(Vector2 pieceGridPos) {
+        List<Vector2> moves = new List<Vector2>();
+        GameObject kingObj = GetObjectOnGrid(pieceGridPos);
+        PieceProperties pieceProperties = kingObj.GetComponent<PieceProperties>();
+        int kingMoves = pieceProperties.getMoves;
+        if (kingMoves > 0 || !IsSafePositionToMoveWithoutKing(pieceGridPos, kingObj.tag))
+            return moves;
+        UpdateKingCastleMoves(ref moves, pieceGridPos, kingObj.tag);
+        return moves;
+    }
+
+    private void UpdateKingCastleMoves(ref List<Vector2> moves,Vector2 kingGridPos, string tag) {
+        List<GameObject> rooks = GetRookForCastle(tag);
+        for (int i = 0; i < rooks.Count; ++i) {
+            Vector2 rookGridPos = GetGridIndex(rooks[i].transform.position);
+            bool canCastle = CanCastleTheKing(kingGridPos, rookGridPos);
+            if (!canCastle)
+                continue;
+            Vector2 gridPos = GetKingMovesForCastleWithRook(kingGridPos, rookGridPos);
+            moves.Add(gridPos);
+        }
+    }
+
+    private Vector2 GetKingMovesForCastleWithRook(Vector2 kingGridPos, Vector2 rookGridPos) {
+        Vector2 kingMovePos = kingGridPos;
+        kingMovePos.x = kingGridPos.x < rookGridPos.x ? kingGridPos.x + 2 : kingGridPos.x - 2;
+        return kingMovePos;
+    }
+
+    private List<GameObject> GetRookForCastle(string tag) {
+        List<GameObject> rooks = new List<GameObject>();
+        List<GameObject> availablePieces = GetAvailablePiecesWithoutKing(tag);
+        for (int i = 0; i < availablePieces.Count; ++i) {
+            string typeStr = availablePieces[i].GetComponent<PieceProperties>().typeStr;
+            if (typeStr == Config.ROOK)
+                rooks.Add(availablePieces[i]);
+        }
+        return rooks;
+    }
+
+    public bool CanCastleTheKing(Vector2 kingPos, Vector2 rookPos) {
+        int x = Mathf.Abs((int)kingPos.x - (int)rookPos.x);
+        x = x == 0 ? x : x - 1;
+        int startX = (int)kingPos.x < (int)rookPos.x ? (int)kingPos.x : (int)rookPos.x;
+        startX += 1;
+        int endX = startX + x;
+        bool canCastle = true;
+        for (int i = startX; i < endX; ++i) {
+            Vector2 piecePos = new Vector2(i, kingPos.y);
+            GameObject obj = GetObjectOnGrid(piecePos);
+            if (obj != null)
+                canCastle = false;
+        }
+        return canCastle;
+    }
+
+    public Vector2 GetProperRook(bool isKingMovedLeft, Vector2 movedGridPos) {
+        Vector2 rookGridPos = new Vector2();
+        int startIndex = isKingMovedLeft ? 0 : (int)movedGridPos.x + 1;
+        int endIndex = isKingMovedLeft ? (int)movedGridPos.x : 8;
+
+        for (; startIndex < endIndex; ++startIndex) {
+            Vector2 gridPos = new Vector2(startIndex, (int)movedGridPos.y);
+            GameObject obj = GetObjectOnGrid(gridPos);
+            if (obj == null)
+                continue;
+            rookGridPos = GetGridIndex(obj.transform.position);
+        }
+
+        return rookGridPos;
+    }
+
     public List<Vector2> GetHorizontalMoves(int maxMoves, Vector2 pieceGridPos, bool supporting) {
         List<Vector2> moves = new List<Vector2>();
         int startX = 0;
@@ -522,6 +598,22 @@ public class GameManager : MonoBehaviour
         List<Vector2> movableObjects = new List<Vector2>();
         List<GameObject> availablePieces = GetAvailablePieces(tag);
         for (int i = 0; i < availablePieces.Count; ++i) {
+            Vector2 gridPos = GetGridIndex(availablePieces[i].transform.position);
+            if (supporting && gameplayScene.aiKingCheckmateByPlayerPiece == gridPos)
+                continue;
+            List<Vector2> possibleMoves = GetPossibleMoves(gridPos, supporting);
+            if (possibleMoves.Count <= 0)
+                continue;
+            movableObjects.Add(gridPos);
+        }
+        return movableObjects;
+    }
+
+    public List<Vector2> GetMovablePieceGridIndexWithoutKing(string tag, bool supporting) {
+        List<Vector2> movableObjects = new List<Vector2>();
+        List<GameObject> availablePieces = GetAvailablePiecesWithoutKing(tag);
+        for (int i = 0; i < availablePieces.Count; ++i)
+        {
             Vector2 gridPos = GetGridIndex(availablePieces[i].transform.position);
             if (supporting && gameplayScene.aiKingCheckmateByPlayerPiece == gridPos)
                 continue;
@@ -868,6 +960,18 @@ public class GameManager : MonoBehaviour
     public bool IsSafePositionToMove(Vector2 movingPos, string tag) {
         tag = RevertTag(tag);
         List<Vector2> movingPieces = GetMovablePieceGridIndex(tag, false);
+        for (int i = 0; i < movingPieces.Count; ++i) {
+            List<Vector2> possibleMoves = GetPossibleMoves(movingPieces[i], false);
+            bool isContainsMovingPos = possibleMoves.Contains(movingPos);
+            if (isContainsMovingPos)
+                return false;
+        }
+        return true;
+    }
+
+    public bool IsSafePositionToMoveWithoutKing(Vector2 movingPos, string tag) {
+        tag = RevertTag(tag);
+        List<Vector2> movingPieces = GetMovablePieceGridIndexWithoutKing(tag, false);
         for (int i = 0; i < movingPieces.Count; ++i) {
             List<Vector2> possibleMoves = GetPossibleMoves(movingPieces[i], false);
             bool isContainsMovingPos = possibleMoves.Contains(movingPos);
